@@ -1,0 +1,181 @@
+# Meeting Recall UX Rules
+
+## Purpose
+This document defines the user experience rules for Meeting Recall.
+
+These rules should guide every screen, interaction, component, and future feature decision.
+
+---
+
+# 1. Reduce User Thinking
+
+The user should never wonder:
+- Where is my recording?
+- What do I do next?
+- How do I get this into NotebookLM?
+- Did my file save correctly?
+
+Every screen should make the next action obvious.
+
+---
+
+# 2. NotebookLM Is the Main Workflow
+
+Meeting Recall does not provide AI summaries inside the app.
+
+The core value is:
+Record here. Understand in NotebookLM.
+
+Because of this:
+- “Open NotebookLM” should be the primary CTA on recording detail screens.
+- Share should be secondary.
+- The app should always guide the user toward making the recording easy to upload.
+
+---
+
+# 3. Old Recordings Must Work Like New Recordings
+
+Users may not send a recording to NotebookLM immediately.
+
+Any old recording should be just as easy to open, prepare, and upload later.
+
+The app should never treat NotebookLM handoff as a one-time post-recording step.
+
+---
+
+# 4. File Visibility Is Core UX
+
+The file system is part of the user experience.
+
+Recordings must:
+- Save to a visible Meeting Recall folder
+- Use clean date-first file names
+- Be easy to identify later
+- Rename both in the UI and on the device
+- Be easy to find when uploading into NotebookLM
+
+---
+
+# 5. Recording Is Sacred
+
+The recording screen should be calm and focused.
+
+During recording, do not show:
+- Share actions
+- Delete actions
+- Rename actions
+- NotebookLM actions
+- Extra settings
+
+Only show what is needed to record, pause, resume, and stop.
+
+---
+
+# 6. Keep the App Lean
+
+Do not add features that turn Meeting Recall into:
+- A transcription app
+- An AI assistant
+- A meeting dashboard
+- A notes app
+- A collaboration tool
+
+If a feature does not directly support recording, saving, finding, playing, or opening in NotebookLM, it should probably not be in the MVP.
+
+---
+
+# 7. Typography Carries the Design
+
+The UI should feel premium through:
+- Strong typography
+- Generous spacing
+- Clean alignment
+- Minimal visual noise
+
+Avoid relying on:
+- Heavy shadows
+- Too many cards
+- Decorative gradients
+- Excessive color
+
+---
+
+# 8. Visual Style
+
+Meeting Recall should feel:
+- Calm
+- Minimal
+- Premium
+- Clear
+- Utility-focused
+
+Design direction:
+- Light-only for MVP
+- Primary blue: #4b7de6
+- Red only for active recording states
+- Dividers over cards
+- Gradient only for the most important CTA
+
+---
+
+# 9. Buttons and Actions
+
+Primary action:
+Open NotebookLM
+
+Secondary actions:
+- Share
+- Rename
+- Delete
+
+Rules:
+- Only one dominant CTA per screen.
+- Secondary actions should not visually compete with the primary action.
+- Destructive actions like Delete should be visually quiet until selected.
+
+---
+
+# 10. Copywriting Rules
+
+Copy should be:
+- Short
+- Plainspoken
+- Helpful
+- Non-technical
+
+Avoid:
+- Corporate language
+- Long explanations
+- Overpromising AI
+- Saying Meeting Recall creates summaries
+
+Use language like:
+- “Your recording is ready.”
+- “Saved to Meeting Recall folder.”
+- “Open NotebookLM.”
+- “Upload this file as a source.”
+- “Record here. Understand in NotebookLM.”
+
+---
+
+# 11. Error Handling
+
+Errors should:
+- Explain what happened
+- Tell the user what to do next
+- Avoid blame
+- Avoid technical jargon
+
+Bad:
+“File system write exception.”
+
+Good:
+“Unable to save recording. Please try again.”
+
+---
+
+# 12. Success Standard
+
+A non-technical user should be able to use the app without instructions.
+
+If the user needs a tutorial to understand the main workflow, the UX is not clear enough.
