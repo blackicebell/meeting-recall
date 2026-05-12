@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   getRecordingPermissionsAsync,
   RecordingPresets,
@@ -21,22 +21,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
 type SpikeRecordingStatus = "idle" | "preparing" | "recording" | "paused" | "stopped";
 type FileCheckStatus = "not checked" | "exists" | "missing";
-type RenameAttempt = {
-  fileName: string;
-  oldDeleted: boolean;
-  size: number | null;
-  strategy: string;
-  uri: string;
-};
 
-type DirectRenameResult =
-  | RenameAttempt
-  | {
-      didRename: false;
-      reason: string;
-    };
-
-const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
 const ANDROID_EXPORT_PARENT_FOLDER = "Documents";
 const DEFAULT_RECORDING_TITLE = "Test Recording";
 const SAF_FOLDER_STORE_FILE = "meeting-recall-saf-folder-uri.txt";
@@ -77,15 +62,6 @@ function buildRecordingFileName(title: string) {
   return `${getDatePrefix()} \u2013 ${sanitizeRecordingTitle(title)}.m4a`;
 }
 
-function getFileNameFromUri(uri: string | null) {
-  if (!uri) {
-    return "none";
-  }
-
-  const lastSegment = uri.split("/").pop() ?? uri;
-  return decodeURIComponent(lastSegment);
-}
-
 function describeStorageMethod(uri: string | null) {
   if (!uri) {
     return "none";
@@ -122,43 +98,60 @@ function getFileSizeDebug(fileInfo: Awaited<ReturnType<typeof FileSystem.getInfo
     : null;
 }
 
+function getUriExtension(uri: string | null) {
+  if (!uri) {
+    return "none";
+  }
+
+  const cleanUri = uri.split("?")[0] ?? uri;
+  const match = cleanUri.match(/\.([a-z0-9]+)$/i);
+
+  return match ? `.${match[1]}` : "unknown";
+}
+
 export function RecordingScreen({ navigation }: Props) {
   const [permissionStatus, setPermissionStatus] = useState("unknown");
   const [recordingStatus, setRecordingStatus] = useState<SpikeRecordingStatus>("idle");
-  const [savedFileUri, setSavedFileUri] = useState<string | null>(null);
-  const [exportedFileUri, setExportedFileUri] = useState<string | null>(null);
-  const [preparedFileUri, setPreparedFileUri] = useState<string | null>(null);
-  const [meetingRecallFolderUri, setMeetingRecallFolderUri] = useState<string | null>(null);
+  const [tempRecordingUri, setTempRecordingUri] = useState<string | null>(null);
+  const [selectedFolderUri, setSelectedFolderUri] = useState<string | null>(null);
   const [folderChoiceStatus, setFolderChoiceStatus] = useState("not selected");
   const [folderPersistenceStatus, setFolderPersistenceStatus] = useState("not persisted");
-  const [displayName, setDisplayName] = useState(DEFAULT_RECORDING_TITLE);
-  const [renameInput, setRenameInput] = useState("Renamed Test Recording");
-  const [actualFileName, setActualFileName] = useState(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
-  const [renameOldFileName, setRenameOldFileName] = useState("none");
-  const [renameNewFileName, setRenameNewFileName] = useState("none");
-  const [renameOldFileUri, setRenameOldFileUri] = useState<string | null>(null);
-  const [renameNewFileUri, setRenameNewFileUri] = useState<string | null>(null);
-  const [renameStrategy, setRenameStrategy] = useState("not tested");
-  const [renameNewFileSize, setRenameNewFileSize] = useState("not checked");
-  const [renameOldFileDeleted, setRenameOldFileDeleted] = useState("not checked");
-  const [finalActiveFileUri, setFinalActiveFileUri] = useState<string | null>(null);
-  const [copyStatus, setCopyStatus] = useState("not copied");
-  const [prepareStatus, setPrepareStatus] = useState("not prepared");
-  const [renameStatus, setRenameStatus] = useState("not renamed");
-  const [originalFileCheck, setOriginalFileCheck] = useState<FileCheckStatus>("not checked");
-  const [exportedFileCheck, setExportedFileCheck] = useState<FileCheckStatus>("not checked");
-  const [preparedFileCheck, setPreparedFileCheck] = useState<FileCheckStatus>("not checked");
-  const [oldRenamedFileCheck, setOldRenamedFileCheck] = useState<FileCheckStatus>("not checked");
-  const [shareStatus, setShareStatus] = useState("not shared");
-  const [notebookLmStatus, setNotebookLmStatus] = useState("not opened");
+  const [titleInput, setTitleInput] = useState(DEFAULT_RECORDING_TITLE);
+  const [finalFileName, setFinalFileName] = useState(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
+  const [finalSavedUri, setFinalSavedUri] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState("not saved");
+  const [saveSuccess, setSaveSuccess] = useState("false");
+  const [savedFileExists, setSavedFileExists] = useState<FileCheckStatus>("not checked");
+  const [savedFileSize, setSavedFileSize] = useState("not checked");
+  const [tempFileExists, setTempFileExists] = useState<FileCheckStatus>("not checked");
+  const [debugTargetFolderUri, setDebugTargetFolderUri] = useState<string | null>(null);
+  const [debugTargetFileUri, setDebugTargetFileUri] = useState<string | null>(null);
+  const [debugOperation, setDebugOperation] = useState("not run");
+  const [debugSuccess, setDebugSuccess] = useState("false");
+  const [debugErrorMessage, setDebugErrorMessage] = useState("none");
+  const [debugFileExists, setDebugFileExists] = useState<FileCheckStatus>("not checked");
+  const [debugFileSize, setDebugFileSize] = useState("not checked");
+  const [recordingInfoExists, setRecordingInfoExists] = useState<FileCheckStatus>("not checked");
+  const [recordingInfoSize, setRecordingInfoSize] = useState("not checked");
+  const [recordingMimeType, setRecordingMimeType] = useState("unknown");
+  const [recordingReadable, setRecordingReadable] = useState("not tested");
+  const [recordingReadWarning, setRecordingReadWarning] = useState("none");
+  const [copyMethod, setCopyMethod] = useState("not run");
+  const [copySourceUri, setCopySourceUri] = useState<string | null>(null);
+  const [copyTargetUri, setCopyTargetUri] = useState<string | null>(null);
+  const [copyTargetFileName, setCopyTargetFileName] = useState("none");
+  const [copySuccess, setCopySuccess] = useState("false");
+  const [copyError, setCopyError] = useState("none");
+  const [copyTargetExists, setCopyTargetExists] = useState<FileCheckStatus>("not checked");
+  const [copyTargetSize, setCopyTargetSize] = useState("not checked");
   const [lastError, setLastError] = useState<string | null>(null);
 
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const recorderState = useAudioRecorderState(recorder, 250);
-  const playerSource = useMemo(() => (savedFileUri ? { uri: savedFileUri } : null), [savedFileUri]);
+  const playbackUri = finalSavedUri ?? tempRecordingUri;
+  const playerSource = useMemo(() => (playbackUri ? { uri: playbackUri } : null), [playbackUri]);
   const player = useAudioPlayer(playerSource, { updateInterval: 250 });
   const playerStatus = useAudioPlayerStatus(player);
-  const currentFileName = useMemo(() => buildRecordingFileName(displayName), [displayName]);
 
   useEffect(() => {
     async function loadPermissionStatus() {
@@ -191,7 +184,7 @@ export function RecordingScreen({ navigation }: Props) {
         }
 
         const storedUri = await FileSystem.readAsStringAsync(storedUriFile);
-        setMeetingRecallFolderUri(storedUri);
+        setSelectedFolderUri(storedUri);
         setFolderChoiceStatus("loaded stored SAF folder URI");
         setFolderPersistenceStatus("loaded from app documentDirectory");
       } catch (error) {
@@ -245,29 +238,16 @@ export function RecordingScreen({ navigation }: Props) {
 
       await recorder.prepareToRecordAsync();
       recorder.record();
-      setSavedFileUri(null);
-      setExportedFileUri(null);
-      setPreparedFileUri(null);
-      setDisplayName(DEFAULT_RECORDING_TITLE);
-      setRenameInput("Renamed Test Recording");
-      setActualFileName(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
-      setRenameOldFileName("none");
-      setRenameNewFileName("none");
-      setRenameOldFileUri(null);
-      setRenameNewFileUri(null);
-      setRenameStrategy("not tested");
-      setRenameNewFileSize("not checked");
-      setRenameOldFileDeleted("not checked");
-      setFinalActiveFileUri(null);
-      setCopyStatus("not copied");
-      setPrepareStatus("not prepared");
-      setRenameStatus("not renamed");
-      setOriginalFileCheck("not checked");
-      setExportedFileCheck("not checked");
-      setPreparedFileCheck("not checked");
-      setOldRenamedFileCheck("not checked");
-      setShareStatus("not shared");
-      setNotebookLmStatus("not opened");
+      setTempRecordingUri(null);
+      setFinalSavedUri(null);
+      setFinalFileName(buildRecordingFileName(titleInput));
+      setSaveStatus("not saved");
+      setSaveSuccess("false");
+      setSavedFileExists("not checked");
+      setSavedFileSize("not checked");
+      setTempFileExists("not checked");
+      resetFileSaveDebug();
+      resetRecordingCopyDebug();
       setRecordingStatus("recording");
     } catch (error) {
       setRecordingStatus("idle");
@@ -302,105 +282,77 @@ export function RecordingScreen({ navigation }: Props) {
       await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: true });
 
       const uri = recorder.uri ?? recorderState.url;
-      setSavedFileUri(uri);
+      setTempRecordingUri(uri);
       setRecordingStatus("stopped");
 
       if (!uri) {
-        setLastError("Recording stopped, but no file URI was returned.");
+        setLastError("Recording stopped, but no temp file URI was returned.");
         return;
       }
 
-      await testOriginalFileExists(uri);
+      await testTempFileExists(uri);
     } catch (error) {
       setLastError(`Unable to stop recording: ${getErrorMessage(error)}`);
     }
   }
 
-  async function testOriginalFileExists(uri = savedFileUri) {
+  async function testTempFileExists(uri = tempRecordingUri) {
     try {
       setLastError(null);
 
       if (!uri) {
-        setOriginalFileCheck("missing");
-        setLastError("No original recording URI is available yet.");
+        setTempFileExists("missing");
+        setLastError("No temp recording URI is available yet.");
         return false;
       }
 
       const fileInfo = await FileSystem.getInfoAsync(uri);
-      setOriginalFileCheck(fileInfo.exists ? "exists" : "missing");
+      const fileSize = getFileSizeDebug(fileInfo);
+      const exists = fileInfo.exists ? "exists" : "missing";
+
+      setTempFileExists(exists);
+      setRecordingInfoExists(exists);
+      setRecordingInfoSize(fileSize === null ? "unknown" : String(fileSize));
+      setRecordingMimeType("audio/mp4 expected from .m4a recording preset");
 
       if (!fileInfo.exists) {
-        setLastError("Original recording file could not be found.");
+        setLastError("Temp recording file could not be found.");
       }
 
       return fileInfo.exists;
     } catch (error) {
-      setOriginalFileCheck("missing");
-      setLastError(`Unable to check original file: ${getErrorMessage(error)}`);
+      setTempFileExists("missing");
+      setLastError(`Unable to check temp file: ${getErrorMessage(error)}`);
       return false;
     }
   }
 
-  async function testExportedFileExists(uri = exportedFileUri) {
+  async function testSavedFileExists(uri = finalSavedUri) {
     try {
       setLastError(null);
 
       if (!uri) {
-        setExportedFileCheck("missing");
-        setLastError("No exported file URI is available yet.");
+        setSavedFileExists("missing");
+        setSavedFileSize("not checked");
+        setLastError("No saved public file URI is available yet.");
         return false;
       }
 
       const fileInfo = await FileSystem.getInfoAsync(uri);
-      setExportedFileCheck(fileInfo.exists ? "exists" : "missing");
+      const fileSize = getFileSizeDebug(fileInfo);
+      setSavedFileExists(fileInfo.exists ? "exists" : "missing");
+      setSavedFileSize(fileSize === null ? "unknown" : String(fileSize));
 
       if (!fileInfo.exists) {
-        setLastError("Exported file could not be found.");
+        setLastError("Saved public file could not be found.");
       }
 
       return fileInfo.exists;
     } catch (error) {
-      setExportedFileCheck("missing");
-      setLastError(`Unable to check exported file: ${getErrorMessage(error)}`);
+      setSavedFileExists("missing");
+      setSavedFileSize("not checked");
+      setLastError(`Unable to check saved public file: ${getErrorMessage(error)}`);
       return false;
-    }
-  }
-
-  async function testPreparedFileExists(uri = preparedFileUri) {
-    try {
-      setLastError(null);
-
-      if (!uri) {
-        setPreparedFileCheck("missing");
-        setLastError("No prepared NotebookLM file URI is available yet.");
-        return false;
-      }
-
-      const fileInfo = await FileSystem.getInfoAsync(uri);
-      setPreparedFileCheck(fileInfo.exists ? "exists" : "missing");
-
-      if (!fileInfo.exists) {
-        setLastError("Prepared NotebookLM file could not be found.");
-      }
-
-      return fileInfo.exists;
-    } catch (error) {
-      setPreparedFileCheck("missing");
-      setLastError(`Unable to check prepared file: ${getErrorMessage(error)}`);
-      return false;
-    }
-  }
-
-  async function getOrCreateMeetingRecallFolder(parentDirectoryUri: string) {
-    try {
-      return await FileSystem.StorageAccessFramework.makeDirectoryAsync(
-        parentDirectoryUri,
-        "Meeting Recall"
-      );
-    } catch {
-      // If the folder already exists or Android refuses duplicate creation, use the selected folder.
-      // For this spike, selecting an existing "Meeting Recall" folder is an acceptable manual path.
-      return parentDirectoryUri;
     }
   }
 
@@ -442,23 +394,13 @@ export function RecordingScreen({ navigation }: Props) {
         return;
       }
 
-      setMeetingRecallFolderUri(permissions.directoryUri);
+      setSelectedFolderUri(permissions.directoryUri);
       setFolderChoiceStatus("selected SAF folder");
       await persistSafFolderUri(permissions.directoryUri);
     } catch (error) {
       setFolderChoiceStatus("failed");
       setLastError(`Unable to choose folder: ${getErrorMessage(error)}`);
     }
-  }
-
-  async function writeRecordingToSafFile(sourceUri: string, destinationUri: string) {
-    const recordingBase64 = await FileSystem.readAsStringAsync(sourceUri, {
-      encoding: FileSystem.EncodingType.Base64
-    });
-
-    await FileSystem.StorageAccessFramework.writeAsStringAsync(destinationUri, recordingBase64, {
-      encoding: FileSystem.EncodingType.Base64
-    });
   }
 
   async function createSafAudioFile(folderUri: string, fileName: string) {
@@ -490,305 +432,399 @@ export function RecordingScreen({ navigation }: Props) {
     };
   }
 
-  async function copyToMeetingRecallFolder() {
-    try {
-      setLastError(null);
-      setCopyStatus("copying to selected SAF folder");
-
-      if (Platform.OS !== "android") {
-        setCopyStatus("unsupported");
-        setLastError("This spike only validates Android SAF export first.");
-        return;
-      }
-
-      if (!savedFileUri) {
-        setCopyStatus("failed");
-        setLastError("Record something first. No source file URI is available.");
-        return;
-      }
-
-      const sourceExists = await testOriginalFileExists(savedFileUri);
-
-      if (!sourceExists) {
-        setCopyStatus("failed");
-        return;
-      }
-
-      if (!meetingRecallFolderUri) {
-        setCopyStatus("needs selected folder");
-        setLastError("Choose a visible Meeting Recall folder before copying.");
-        return;
-      }
-
-      const folderUri = meetingRecallFolderUri;
-      const destination = await createSafAudioFile(folderUri, currentFileName);
-      await writeRecordingToSafFile(savedFileUri, destination.uri);
-
-      setMeetingRecallFolderUri(folderUri);
-      setExportedFileUri(destination.uri);
-      setPreparedFileUri(null);
-      setFinalActiveFileUri(destination.uri);
-      setActualFileName(destination.fileName);
-      setCopyStatus("copied");
-      await testExportedFileExists(destination.uri);
-    } catch (error) {
-      setCopyStatus("failed");
-      setLastError(`Unable to copy file: ${getErrorMessage(error)}`);
-    }
+  function resetFileSaveDebug() {
+    setDebugTargetFolderUri(null);
+    setDebugTargetFileUri(null);
+    setDebugOperation("not run");
+    setDebugSuccess("false");
+    setDebugErrorMessage("none");
+    setDebugFileExists("not checked");
+    setDebugFileSize("not checked");
   }
 
-  async function tryDirectRename(oldFileUri: string, newFileName: string): Promise<DirectRenameResult> {
-    if (oldFileUri.startsWith("content://")) {
-      return {
-        didRename: false,
-        reason: "direct rename unsupported for SAF content URI"
-      };
-    }
-
-    if (!oldFileUri.startsWith("file://")) {
-      return {
-        didRename: false,
-        reason: "direct rename unsupported for this URI scheme"
-      };
-    }
-
-    try {
-      const directoryUri = oldFileUri.slice(0, oldFileUri.lastIndexOf("/") + 1);
-      const newFileUri = `${directoryUri}${encodeURIComponent(newFileName)}`;
-      await FileSystem.moveAsync({ from: oldFileUri, to: newFileUri });
-
-      const newInfo = await FileSystem.getInfoAsync(newFileUri);
-      const oldInfo = await FileSystem.getInfoAsync(oldFileUri);
-
-      if (!newInfo.exists || oldInfo.exists) {
-        return {
-          didRename: false,
-          reason: "direct rename did not produce the expected file state"
-        };
-      }
-
-      return {
-        fileName: newFileName,
-        oldDeleted: !oldInfo.exists,
-        size: getFileSizeDebug(newInfo),
-        strategy: "direct rename",
-        uri: newFileUri
-      };
-    } catch (error) {
-      return {
-        didRename: false,
-        reason: `direct rename failed: ${getErrorMessage(error)}`
-      };
-    }
+  function resetRecordingCopyDebug() {
+    setRecordingInfoExists("not checked");
+    setRecordingInfoSize("not checked");
+    setRecordingMimeType("unknown");
+    setRecordingReadable("not tested");
+    setRecordingReadWarning("none");
+    setCopyMethod("not run");
+    setCopySourceUri(null);
+    setCopyTargetUri(null);
+    setCopyTargetFileName("none");
+    setCopySuccess("false");
+    setCopyError("none");
+    setCopyTargetExists("not checked");
+    setCopyTargetSize("not checked");
   }
 
-  async function deleteOldFileForRename(oldFileUri: string) {
-    try {
-      if (oldFileUri.startsWith("content://")) {
-        await FileSystem.StorageAccessFramework.deleteAsync(oldFileUri);
-      } else {
-        await FileSystem.deleteAsync(oldFileUri, { idempotent: true });
-      }
+  async function updateDebugFileResult(fileUri: string) {
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    const fileSize = getFileSizeDebug(fileInfo);
 
-      const oldInfo = await FileSystem.getInfoAsync(oldFileUri);
-      return {
-        deleted: !oldInfo.exists,
-        message: !oldInfo.exists ? "deleted" : "delete attempted, but old file still exists"
-      };
-    } catch (error) {
-      return {
-        deleted: false,
-        message: `delete failed: ${getErrorMessage(error)}`
-      };
-    }
-  }
-
-  async function copyAndReplaceRename(
-    oldFileUri: string,
-    newFileName: string,
-    directRenameReason: string
-  ): Promise<RenameAttempt> {
-    if (!meetingRecallFolderUri) {
-      throw new Error("No selected Meeting Recall folder URI is available.");
-    }
-
-    const newFile = await createSafAudioFile(meetingRecallFolderUri, newFileName);
-    await writeRecordingToSafFile(oldFileUri, newFile.uri);
-
-    const newInfo = await FileSystem.getInfoAsync(newFile.uri);
-    const newSize = getFileSizeDebug(newInfo);
-
-    if (!newInfo.exists || newSize === null || newSize <= 0) {
-      throw new Error("Copy-and-replace created a missing or empty renamed file.");
-    }
-
-    const oldDeleteResult = await deleteOldFileForRename(oldFileUri);
+    setDebugFileExists(fileInfo.exists ? "exists" : "missing");
+    setDebugFileSize(fileSize === null ? "unknown" : String(fileSize));
 
     return {
-      fileName: newFile.fileName,
-      oldDeleted: oldDeleteResult.deleted,
-      size: newSize,
-      strategy: `copy-and-replace (${directRenameReason}; old ${oldDeleteResult.message})`,
-      uri: newFile.uri
+      exists: fileInfo.exists,
+      size: fileSize
     };
   }
 
-  async function renameFileForSpike() {
+  async function updateCopyTargetResult(fileUri: string) {
+    const fileInfo = await FileSystem.getInfoAsync(fileUri);
+    const fileSize = getFileSizeDebug(fileInfo);
+
+    setCopyTargetExists(fileInfo.exists ? "exists" : "missing");
+    setCopyTargetSize(fileSize === null ? "unknown" : String(fileSize));
+
+    return {
+      exists: fileInfo.exists,
+      size: fileSize
+    };
+  }
+
+  async function deleteFailedSafFile(fileUri: string) {
     try {
-      setLastError(null);
-      setRenameStatus("renaming");
-      setRenameStrategy("testing direct rename support");
-      setRenameNewFileSize("not checked");
-      setRenameOldFileDeleted("not checked");
-      setFinalActiveFileUri(null);
-      setOldRenamedFileCheck("not checked");
+      await FileSystem.StorageAccessFramework.deleteAsync(fileUri);
+      return "failed target deleted";
+    } catch (error) {
+      return `failed target could not be deleted: ${getErrorMessage(error)}`;
+    }
+  }
 
-      const fileToRename = exportedFileUri ?? preparedFileUri;
+  async function validateReadableSourceRecording(options: { readBytes: boolean }) {
+    if (!tempRecordingUri) {
+      throw new Error("Source recording file is empty or unreadable.");
+    }
 
-      if (!meetingRecallFolderUri || !fileToRename) {
-        setRenameStatus("failed");
-        setLastError("Copy a recording to the Meeting Recall folder before testing rename.");
+    const fileInfo = await FileSystem.getInfoAsync(tempRecordingUri);
+    const fileSize = getFileSizeDebug(fileInfo);
+
+    setRecordingInfoExists(fileInfo.exists ? "exists" : "missing");
+    setRecordingInfoSize(fileSize === null ? "unknown" : String(fileSize));
+    setRecordingMimeType("audio/mp4 expected from .m4a recording preset");
+
+    if (!fileInfo.exists || fileSize === null || fileSize <= 0) {
+      setRecordingReadable("false");
+      throw new Error("Source recording file is empty or unreadable.");
+    }
+
+    if (!options.readBytes) {
+      setRecordingReadable("not tested");
+      return null;
+    }
+
+    try {
+      const recordingBase64 = await FileSystem.readAsStringAsync(tempRecordingUri, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+
+      if (!recordingBase64) {
+        setRecordingReadable("false");
+        throw new Error("Source recording file is empty or unreadable.");
+      }
+
+      setRecordingReadable("true");
+      return recordingBase64;
+    } catch (error) {
+      setRecordingReadable("false");
+      throw new Error(`Source recording file is empty or unreadable. ${getErrorMessage(error)}`);
+    }
+  }
+
+  function ensureSelectedFolderForDebug(operation: string) {
+    setLastError(null);
+    setDebugOperation(operation);
+    setDebugSuccess("false");
+    setDebugErrorMessage("none");
+    setDebugFileExists("not checked");
+    setDebugFileSize("not checked");
+    setDebugTargetFolderUri(selectedFolderUri);
+    setDebugTargetFileUri(null);
+
+    if (!selectedFolderUri) {
+      const message = "Choose the visible Meeting Recall folder first.";
+      setDebugErrorMessage(message);
+      setLastError(message);
+      return null;
+    }
+
+    return selectedFolderUri;
+  }
+
+  async function createTestTextFile() {
+    const operation = "create test text file";
+
+    try {
+      const folderUri = ensureSelectedFolderForDebug(operation);
+
+      if (!folderUri) {
         return;
       }
 
-      if (!renameInput.trim()) {
-        setRenameStatus("failed");
-        setLastError("Enter a new recording name before testing rename.");
-        return;
-      }
+      const fileName = `${getDatePrefix()} Meeting Recall SAF Test.txt`;
+      const fileUri = await FileSystem.StorageAccessFramework.createFileAsync(
+        folderUri,
+        fileName,
+        "text/plain"
+      );
+      setDebugTargetFileUri(fileUri);
 
-      const newDisplayName = sanitizeRecordingTitle(renameInput);
-      const newFileName = buildRecordingFileName(newDisplayName);
-      const oldFileName = actualFileName;
-      const oldFileUri = fileToRename;
-      const directRename = await tryDirectRename(oldFileUri, newFileName);
-      const renameResult = "uri" in directRename
-        ? directRename
-        : await copyAndReplaceRename(oldFileUri, newFileName, directRename.reason);
-
-      const newExists = await FileSystem.getInfoAsync(renameResult.uri);
-      const oldExists = await FileSystem.getInfoAsync(oldFileUri);
-      const newSize = renameResult.size ?? getFileSizeDebug(newExists);
-      const oldDeleted = renameResult.oldDeleted || !oldExists.exists;
-
-      setDisplayName(newDisplayName);
-      setActualFileName(renameResult.fileName);
-      setExportedFileUri(renameResult.uri);
-      setPreparedFileUri(null);
-      setRenameOldFileName(oldFileName);
-      setRenameNewFileName(renameResult.fileName);
-      setRenameOldFileUri(oldFileUri);
-      setRenameNewFileUri(renameResult.uri);
-      setRenameStrategy(renameResult.strategy);
-      setRenameNewFileSize(newSize === null ? "unknown" : String(newSize));
-      setRenameOldFileDeleted(String(oldDeleted));
-      setFinalActiveFileUri(renameResult.uri);
-      setExportedFileCheck(newExists.exists ? "exists" : "missing");
-      setOldRenamedFileCheck(oldExists.exists ? "exists" : "missing");
-      setRenameStatus(
-        newExists.exists && newSize !== null && newSize > 0
-          ? "renamed visible file"
-          : "needs review"
+      await FileSystem.StorageAccessFramework.writeAsStringAsync(
+        fileUri,
+        `Meeting Recall file save debug ${new Date().toISOString()}`
       );
 
-      if (!oldDeleted) {
-        setLastError("Renamed file was created, but the old file could not be confirmed deleted.");
-      }
+      const result = await updateDebugFileResult(fileUri);
+      setDebugSuccess(String(result.exists && result.size !== null && result.size > 0));
     } catch (error) {
-      setRenameStatus("failed");
-      setLastError(`Unable to rename file: ${getErrorMessage(error)}`);
+      const message = getErrorMessage(error);
+      setDebugSuccess("false");
+      setDebugErrorMessage(message);
+      setLastError(`Text file debug failed: ${message}`);
     }
   }
 
-  async function prepareForNotebookLm() {
+  async function copyLatestRecordingToFolder() {
+    const operation = "copy latest recording to folder";
+
     try {
-      setLastError(null);
-      setPrepareStatus("preparing");
+      const folderUri = ensureSelectedFolderForDebug(operation);
 
-      const sourceUri = exportedFileUri ?? savedFileUri;
-
-      if (!sourceUri) {
-        setPrepareStatus("failed");
-        setLastError("No recording file is available to prepare.");
+      if (!folderUri) {
         return;
       }
 
-      const sourceInfo = await FileSystem.getInfoAsync(sourceUri);
-
-      if (!sourceInfo.exists) {
-        setPrepareStatus("failed");
-        setLastError("Recording file could not be found before NotebookLM prep.");
+      if (!tempRecordingUri) {
+        const message = "Record something first. No temp recording URI is available.";
+        setDebugErrorMessage(message);
+        setLastError(message);
         return;
       }
 
-      if (!meetingRecallFolderUri) {
-        setPrepareStatus("needs Meeting Recall folder");
-        setLastError("Copy to the Meeting Recall folder before preparing for NotebookLM.");
-        return;
+      const recordingBase64 = await validateReadableSourceRecording({ readBytes: true });
+
+      if (!recordingBase64) {
+        throw new Error("Source recording file is empty or unreadable.");
       }
 
-      if (preparedFileUri) {
-        await FileSystem.StorageAccessFramework.deleteAsync(preparedFileUri, { idempotent: true });
-      }
+      const fileName = buildRecordingFileName(titleInput);
+      const destination = await createSafAudioFile(folderUri, fileName);
+      setDebugTargetFileUri(destination.uri);
+      setFinalFileName(destination.fileName);
+      setFinalSavedUri(destination.uri);
 
-      const preparedFile = await createSafAudioFile(meetingRecallFolderUri, currentFileName);
-      await writeRecordingToSafFile(sourceUri, preparedFile.uri);
-
-      setPreparedFileUri(preparedFile.uri);
-      setFinalActiveFileUri(preparedFile.uri);
-      setActualFileName(preparedFile.fileName);
-      setPrepareStatus("prepared fresh export copy");
-      await testPreparedFileExists(preparedFile.uri);
-      await openNotebookLm();
-    } catch (error) {
-      setPrepareStatus("failed");
-      setLastError(`Unable to prepare file for NotebookLM: ${getErrorMessage(error)}`);
-    }
-  }
-
-  async function shareFile() {
-    try {
-      setLastError(null);
-      setShareStatus("preparing");
-
-      const fileToShare = preparedFileUri ?? exportedFileUri ?? savedFileUri;
-
-      if (!fileToShare) {
-        setShareStatus("failed");
-        setLastError("No file is available to share yet.");
-        return;
-      }
-
-      const Sharing = await import("expo-sharing");
-      const sharingAvailable = await Sharing.isAvailableAsync();
-
-      if (!sharingAvailable) {
-        setShareStatus("unavailable");
-        setLastError("Sharing is not available on this device.");
-        return;
-      }
-
-      await Sharing.shareAsync(fileToShare, {
-        dialogTitle: "Share Meeting Recall test recording",
-        mimeType: "audio/mp4",
-        UTI: "public.mpeg-4-audio"
+      await FileSystem.StorageAccessFramework.writeAsStringAsync(destination.uri, recordingBase64, {
+        encoding: FileSystem.EncodingType.Base64
       });
-      setShareStatus("opened share sheet");
+
+      const result = await updateDebugFileResult(destination.uri);
+      const success = result.exists && result.size !== null && result.size > 0;
+
+      setSaveSuccess(String(success));
+      setSaveStatus(success ? "saved" : "needs review");
+      setSavedFileExists(result.exists ? "exists" : "missing");
+      setSavedFileSize(result.size === null ? "unknown" : String(result.size));
+      setDebugSuccess(String(success));
+
+      if (!success) {
+        const cleanupResult = await deleteFailedSafFile(destination.uri);
+        setDebugErrorMessage(`Recording byte write completed, but saved file is missing or empty. ${cleanupResult}`);
+      }
     } catch (error) {
-      setShareStatus("failed");
-      setLastError(`Unable to share file: ${getErrorMessage(error)}`);
+      const message = getErrorMessage(error);
+      setSaveStatus("failed");
+      setSaveSuccess("false");
+      setDebugSuccess("false");
+      setDebugErrorMessage(message);
+      setLastError(`Recording copy debug failed: ${message}`);
     }
   }
 
-  async function openNotebookLm() {
+  async function testReadRecording() {
     try {
       setLastError(null);
-      setNotebookLmStatus("opening");
-      await Linking.openURL(NOTEBOOKLM_URL);
-      setNotebookLmStatus("opened");
+      setRecordingReadable("testing");
+      setRecordingReadWarning("Reads a tiny test recording only. Not production-safe for long meetings.");
+
+      if (!tempRecordingUri) {
+        const message = "Record a 3-5 second clip first. No temp recording URI is available.";
+        setRecordingReadable("false");
+        setLastError(message);
+        return;
+      }
+
+      await validateReadableSourceRecording({ readBytes: true });
+      setRecordingReadable("true");
     } catch (error) {
-      setNotebookLmStatus("failed");
-      setLastError(`Unable to open NotebookLM: ${getErrorMessage(error)}`);
+      setRecordingReadable("false");
+      setLastError(`Unable to read recording: ${getErrorMessage(error)}`);
+    }
+  }
+
+  function prepareCopyDebug(method: string) {
+    setLastError(null);
+    setCopyMethod(method);
+    setCopySourceUri(tempRecordingUri);
+    setCopyTargetUri(null);
+    setCopyTargetFileName("none");
+    setCopySuccess("false");
+    setCopyError("none");
+    setCopyTargetExists("not checked");
+    setCopyTargetSize("not checked");
+
+    if (!selectedFolderUri) {
+      const message = "Choose the visible Meeting Recall folder first.";
+      setCopyError(message);
+      setLastError(message);
+      return null;
+    }
+
+    if (!tempRecordingUri) {
+      const message = "Record a 3-5 second clip first. No temp recording URI is available.";
+      setCopyError(message);
+      setLastError(message);
+      return null;
+    }
+
+    return {
+      folderUri: selectedFolderUri,
+      sourceUri: tempRecordingUri
+    };
+  }
+
+  async function copyRecordingAsBase64Test() {
+    const prepared = prepareCopyDebug("base64 test copy, not production-safe");
+
+    if (!prepared) {
+      return;
+    }
+
+    try {
+      setRecordingReadWarning("Base64 copy is for 3-5 second test recordings only. Not production-safe for meetings.");
+
+      const recordingBase64 = await validateReadableSourceRecording({ readBytes: true });
+
+      if (!recordingBase64) {
+        throw new Error("Source recording file is empty or unreadable.");
+      }
+      const targetFileName = buildRecordingFileName(`${sanitizeRecordingTitle(titleInput)} Base64 Test`);
+      const destination = await createSafAudioFile(prepared.folderUri, targetFileName);
+      setCopyTargetUri(destination.uri);
+      setCopyTargetFileName(destination.fileName);
+
+      await FileSystem.StorageAccessFramework.writeAsStringAsync(destination.uri, recordingBase64, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+
+      const result = await updateCopyTargetResult(destination.uri);
+      const success = result.exists && result.size !== null && result.size > 0;
+      setCopySuccess(String(success));
+
+      if (!success) {
+        const cleanupResult = await deleteFailedSafFile(destination.uri);
+        setCopyError(`Base64 copy completed, but target file is missing or empty. ${cleanupResult}`);
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setCopySuccess("false");
+      setCopyError(message);
+      setLastError(`Base64 copy test failed: ${message}`);
+    }
+  }
+
+  async function copyRecordingUsingFileSystemApi() {
+    const prepared = prepareCopyDebug("FileSystem.copyAsync");
+
+    if (!prepared) {
+      return;
+    }
+
+    try {
+      await validateReadableSourceRecording({ readBytes: false });
+      const targetFileName = buildRecordingFileName(`${sanitizeRecordingTitle(titleInput)} Copy API Test`);
+      const destination = await createSafAudioFile(prepared.folderUri, targetFileName);
+      setCopyTargetUri(destination.uri);
+      setCopyTargetFileName(destination.fileName);
+
+      await FileSystem.copyAsync({ from: prepared.sourceUri, to: destination.uri });
+
+      const result = await updateCopyTargetResult(destination.uri);
+      const success = result.exists && result.size !== null && result.size > 0;
+      setCopySuccess(String(success));
+
+      if (!success) {
+        const cleanupResult = await deleteFailedSafFile(destination.uri);
+        setCopyError(`FileSystem.copyAsync completed, but target file is missing or empty. ${cleanupResult}`);
+      }
+    } catch (error) {
+      const message = getErrorMessage(error);
+      setCopySuccess("false");
+      setCopyError(message);
+      setLastError(`FileSystem.copyAsync test failed: ${message}`);
+    }
+  }
+
+  async function saveToMeetingRecallFolder() {
+    try {
+      setLastError(null);
+      setSaveStatus("saving");
+      setSaveSuccess("false");
+      setSavedFileExists("not checked");
+      setSavedFileSize("not checked");
+
+      if (Platform.OS !== "android") {
+        setSaveStatus("unsupported");
+        setLastError("This spike only validates Android SAF saving first.");
+        return;
+      }
+
+      if (!tempRecordingUri) {
+        setSaveStatus("failed");
+        setLastError("Record something first. No temp recording URI is available.");
+        return;
+      }
+
+      const recordingBase64 = await validateReadableSourceRecording({ readBytes: true });
+
+      if (!recordingBase64) {
+        throw new Error("Source recording file is empty or unreadable.");
+      }
+
+      if (!selectedFolderUri) {
+        setSaveStatus("needs selected folder");
+        setLastError("Choose the visible Meeting Recall folder before saving.");
+        return;
+      }
+
+      const targetFileName = buildRecordingFileName(titleInput);
+      const destination = await createSafAudioFile(selectedFolderUri, targetFileName);
+      setFinalFileName(destination.fileName);
+      setFinalSavedUri(destination.uri);
+
+      await FileSystem.StorageAccessFramework.writeAsStringAsync(destination.uri, recordingBase64, {
+        encoding: FileSystem.EncodingType.Base64
+      });
+
+      const destinationInfo = await FileSystem.getInfoAsync(destination.uri);
+      const destinationSize = getFileSizeDebug(destinationInfo);
+      const exists = destinationInfo.exists;
+      const hasSize = destinationSize !== null && destinationSize > 0;
+
+      setSavedFileExists(exists ? "exists" : "missing");
+      setSavedFileSize(destinationSize === null ? "unknown" : String(destinationSize));
+      setSaveSuccess(String(exists && hasSize));
+      setSaveStatus(exists && hasSize ? "saved" : "needs review");
+
+      if (!exists || !hasSize) {
+        const cleanupResult = await deleteFailedSafFile(destination.uri);
+        setLastError(`Saved file is missing or empty. ${cleanupResult}`);
+      }
+    } catch (error) {
+      setSaveStatus("failed");
+      setSaveSuccess("false");
+      setLastError(`Unable to save file: ${getErrorMessage(error)}`);
     }
   }
 
@@ -796,12 +832,14 @@ export function RecordingScreen({ navigation }: Props) {
     try {
       setLastError(null);
 
-      if (!savedFileUri) {
-        setLastError("Record something first. No saved file URI is available.");
+      const fileToPlay = finalSavedUri ?? tempRecordingUri;
+
+      if (!fileToPlay) {
+        setLastError("Record something first. No file URI is available.");
         return;
       }
 
-      player.replace({ uri: savedFileUri });
+      player.replace({ uri: fileToPlay });
       await player.seekTo(0);
       player.play();
     } catch (error) {
@@ -823,21 +861,18 @@ export function RecordingScreen({ navigation }: Props) {
   const canPause = recordingStatus === "recording";
   const canResume = recordingStatus === "paused";
   const canStop = recordingStatus === "recording" || recordingStatus === "paused";
-  const canPlay = Boolean(savedFileUri) && !playerStatus.playing;
+  const canSave = Boolean(tempRecordingUri);
+  const canPlay = Boolean(finalSavedUri ?? tempRecordingUri) && !playerStatus.playing;
   const canStopPlayback = playerStatus.playing;
-  const canCopyFile = Boolean(savedFileUri);
-  const canShareFile = Boolean(savedFileUri || exportedFileUri);
-  const canPrepareFile = Boolean(savedFileUri || exportedFileUri);
-  const canRenameFile = Boolean(exportedFileUri || preparedFileUri);
 
   return (
     <Screen>
       <View style={styles.header}>
         <Text style={styles.eyebrow}>Technical spike</Text>
-        <Text style={styles.title}>Audio Recording Validation</Text>
+        <Text style={styles.title}>File Accessibility Validation</Text>
         <Text style={styles.body}>
-          Plain test screen for recording, playback, Android file export, sharing,
-          and NotebookLM file-picker validation. This is not final UI.
+          Minimal test only: record audio, save one file to the selected Meeting Recall folder,
+          and verify the saved file exists. Rename, NotebookLM, and Recents tests are disabled.
         </Text>
       </View>
 
@@ -846,56 +881,73 @@ export function RecordingScreen({ navigation }: Props) {
         <SpikeButton disabled={!canPause} label="Pause recording" onPress={pauseRecording} />
         <SpikeButton disabled={!canResume} label="Resume recording" onPress={resumeRecording} />
         <SpikeButton disabled={!canStop} label="Stop recording" onPress={stopRecording} />
-        <SpikeButton disabled={!canPlay} label="Play saved recording" onPress={playRecording} primary />
+        <SpikeButton label="Choose Meeting Recall Folder" onPress={chooseMeetingRecallFolder} primary />
+        <SpikeButton disabled={!canSave} label="Save One File to Folder" onPress={saveToMeetingRecallFolder} />
+        <SpikeButton disabled={!finalSavedUri} label="Test Saved File Exists" onPress={() => testSavedFileExists()} />
+        <SpikeButton disabled={!canPlay} label="Play Current File" onPress={playRecording} />
         <SpikeButton disabled={!canStopPlayback} label="Stop playback" onPress={stopPlayback} />
-        <SpikeButton
-          label="Choose Meeting Recall Folder"
-          onPress={chooseMeetingRecallFolder}
-          primary
-        />
-        <SpikeButton
-          disabled={!canCopyFile}
-          label="Copy to Selected Folder"
-          onPress={copyToMeetingRecallFolder}
-        />
-        <SpikeButton
-          disabled={!canRenameFile}
-          label="Test Rename File"
-          onPress={renameFileForSpike}
-        />
-        <SpikeButton
-          disabled={!canPrepareFile}
-          label="Prepare for NotebookLM"
-          onPress={prepareForNotebookLm}
-          primary
-        />
-        <SpikeButton disabled={!canShareFile} label="Share File" onPress={shareFile} />
-        <SpikeButton disabled={!savedFileUri} label="Test Current Original File Exists" onPress={() => testOriginalFileExists()} />
-        <SpikeButton
-          disabled={!exportedFileUri}
-          label="Test Current Exported/Renamed File Exists"
-          onPress={() => testExportedFileExists()}
-        />
-        <SpikeButton
-          disabled={!preparedFileUri}
-          label="Test Prepared NotebookLM File Exists"
-          onPress={() => testPreparedFileExists()}
-        />
-        <SpikeButton label="Open NotebookLM" onPress={openNotebookLm} />
         <SpikeButton label="Back to Home" onPress={() => navigation.navigate("Home")} />
       </View>
 
       <View style={styles.panel}>
-        <Text style={styles.panelTitle}>Rename test</Text>
+        <Text style={styles.panelTitle}>File Save Debug</Text>
+        <View style={styles.actions}>
+          <SpikeButton label="Create Test Text File" onPress={createTestTextFile} />
+          <SpikeButton
+            disabled={!canSave}
+            label="Copy Latest Recording to Folder"
+            onPress={copyLatestRecordingToFolder}
+          />
+          <SpikeButton disabled={!canSave} label="Test Read Recording" onPress={testReadRecording} />
+          <SpikeButton
+            disabled={!canSave}
+            label="Copy Recording as Binary/Base64 Test"
+            onPress={copyRecordingAsBase64Test}
+          />
+          <SpikeButton
+            disabled={!canSave}
+            label="Copy Recording Using FileSystem API"
+            onPress={copyRecordingUsingFileSystemApi}
+          />
+        </View>
+        <DebugRow label="Target folder URI" value={debugTargetFolderUri ?? "none"} />
+        <DebugRow label="Target file URI" value={debugTargetFileUri ?? "none"} />
+        <DebugRow label="Operation attempted" value={debugOperation} />
+        <DebugRow label="Success" value={debugSuccess} />
+        <DebugRow label="File exists result" value={debugFileExists} />
+        <DebugRow label="File size result" value={debugFileSize} />
+        <DebugRow label="Exact error message" value={debugErrorMessage} error={debugErrorMessage !== "none"} />
+        <DebugRow label="Recording URI" value={tempRecordingUri ?? "none"} />
+        <DebugRow label="Recording file exists" value={recordingInfoExists} />
+        <DebugRow label="Recording file size" value={recordingInfoSize} />
+        <DebugRow label="Recording MIME/type" value={recordingMimeType} />
+        <DebugRow label="Recording extension" value={getUriExtension(tempRecordingUri)} />
+        <DebugRow label="Recording URI readable" value={recordingReadable} />
+        <DebugRow label="Read warning" value={recordingReadWarning} />
+        <DebugRow label="Copy method" value={copyMethod} />
+        <DebugRow label="Copy source URI" value={copySourceUri ?? "none"} />
+        <DebugRow label="Copy target URI" value={copyTargetUri ?? "none"} />
+        <DebugRow label="Copy target filename" value={copyTargetFileName} />
+        <DebugRow label="Copy success" value={copySuccess} />
+        <DebugRow label="Copy exact error" value={copyError} error={copyError !== "none"} />
+        <DebugRow label="Copy target exists" value={copyTargetExists} />
+        <DebugRow label="Copy target size" value={copyTargetSize} />
+      </View>
+
+      <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Save test</Text>
         <TextInput
           autoCapitalize="words"
-          onChangeText={setRenameInput}
-          placeholder="New recording name"
+          onChangeText={(value) => {
+            setTitleInput(value);
+            setFinalFileName(buildRecordingFileName(value));
+          }}
+          placeholder="Recording title"
           placeholderTextColor={theme.colors.textSubtle}
           style={styles.input}
-          value={renameInput}
+          value={titleInput}
         />
-        <DebugRow label="Sanitized rename filename" value={buildRecordingFileName(renameInput)} />
+        <DebugRow label="Final filename" value={buildRecordingFileName(titleInput)} />
       </View>
 
       <View style={styles.panel}>
@@ -905,46 +957,25 @@ export function RecordingScreen({ navigation }: Props) {
         <DebugRow label="Recorder can record" value={String(recorderState.canRecord)} />
         <DebugRow label="Recorder active" value={String(recorderState.isRecording)} />
         <DebugRow label="Recording duration" value={formatMillis(recorderState.durationMillis)} />
-        <DebugRow label="Recorder URL" value={recorderState.url ?? "none"} />
-        <DebugRow label="Original storage method" value={describeStorageMethod(savedFileUri)} />
-        <DebugRow label="App documentDirectory" value={FileSystem.documentDirectory ?? "none"} />
-        <DebugRow label="App cacheDirectory" value={FileSystem.cacheDirectory ?? "none"} />
-        <DebugRow label="Original recording URI" value={savedFileUri ?? "none"} />
-        <DebugRow label="Selected SAF folder URI" value={meetingRecallFolderUri ?? "none"} />
-        <DebugRow label="Selected folder storage method" value={describeStorageMethod(meetingRecallFolderUri)} />
+        <DebugRow label="Recording temp URI" value={tempRecordingUri ?? "none"} />
+        <DebugRow label="Temp storage method" value={describeStorageMethod(tempRecordingUri)} />
+        <DebugRow label="Temp file exists" value={tempFileExists} />
+        <DebugRow label="Selected/public folder URI" value={selectedFolderUri ?? "none"} />
+        <DebugRow label="Selected folder storage method" value={describeStorageMethod(selectedFolderUri)} />
         <DebugRow label="Folder choice status" value={folderChoiceStatus} />
         <DebugRow label="Folder persistence status" value={folderPersistenceStatus} />
-        <DebugRow label="SAF used" value={String(Boolean(meetingRecallFolderUri?.startsWith("content://")))} />
-        <DebugRow label="Current display name" value={displayName} />
-        <DebugRow label="Actual file name" value={actualFileName} />
-        <DebugRow label="Exported/copied file URI" value={exportedFileUri ?? "none"} />
-        <DebugRow label="Exported storage method" value={describeStorageMethod(exportedFileUri)} />
-        <DebugRow label="Prepared NotebookLM file URI" value={preparedFileUri ?? "none"} />
-        <DebugRow label="Prepared storage method" value={describeStorageMethod(preparedFileUri)} />
-        <DebugRow label="URI file name fallback" value={getFileNameFromUri(preparedFileUri ?? exportedFileUri)} />
-        <DebugRow label="Original file exists" value={originalFileCheck} />
-        <DebugRow label="Current exported/renamed file exists" value={exportedFileCheck} />
-        <DebugRow label="Prepared NotebookLM file exists" value={preparedFileCheck} />
-        <DebugRow label="Old renamed file exists" value={oldRenamedFileCheck} />
-        <DebugRow label="Rename strategy used" value={renameStrategy} />
-        <DebugRow label="Rename old filename" value={renameOldFileName} />
-        <DebugRow label="Rename new filename" value={renameNewFileName} />
-        <DebugRow label="Rename old URI" value={renameOldFileUri ?? "none"} />
-        <DebugRow label="Rename new URI" value={renameNewFileUri ?? "none"} />
-        <DebugRow label="Rename new file size" value={renameNewFileSize} />
-        <DebugRow label="Rename old file deleted" value={renameOldFileDeleted} />
-        <DebugRow label="Final active file URI" value={finalActiveFileUri ?? "none"} />
-        <DebugRow label="Copy/export status" value={copyStatus} />
-        <DebugRow label="Prepare status" value={prepareStatus} />
-        <DebugRow label="Rename status" value={renameStatus} />
-        <DebugRow label="Share status" value={shareStatus} />
-        <DebugRow label="NotebookLM status" value={notebookLmStatus} />
+        <DebugRow label="Final saved URI" value={finalSavedUri ?? "none"} />
+        <DebugRow label="Final filename" value={finalFileName} />
+        <DebugRow label="Save success" value={saveSuccess} />
+        <DebugRow label="File exists" value={savedFileExists} />
+        <DebugRow label="File size" value={savedFileSize} />
+        <DebugRow label="Save status" value={saveStatus} />
         <DebugRow label="Playback loaded" value={String(playerStatus.isLoaded)} />
         <DebugRow label="Playback status" value={playerStatus.playbackState} />
         <DebugRow label="Playback playing" value={String(playerStatus.playing)} />
         <DebugRow label="Playback time" value={formatSeconds(playerStatus.currentTime)} />
         <DebugRow label="Playback duration" value={formatSeconds(playerStatus.duration)} />
-        <DebugRow label="Last error" value={lastError ?? "none"} error={Boolean(lastError)} />
+        <DebugRow label="Error message" value={lastError ?? "none"} error={Boolean(lastError)} />
       </View>
     </Screen>
   );

@@ -146,6 +146,36 @@ Examples:
 
 ---
 
+# Final Save Expectations
+
+The preferred production save flow is:
+
+1. Record to a temporary app-controlled URI.
+2. User enters or accepts the title.
+3. Sanitize the title.
+4. Create the final filename:
+YYYY-MM-DD – Meeting Name.m4a
+5. Copy/write the audio into Documents / Meeting Recall using that final filename.
+6. Verify the final file exists.
+7. Verify file size is greater than 0.
+8. Save app metadata pointing to the final public file URI.
+9. Delete the temporary file if safe.
+
+Direct rename is unreliable on the tested Android setup, so the app should avoid needing to rename public files during the normal save flow.
+
+Memory-heavy copy attempts that read the full audio file into JS memory caused low-memory warnings during Android testing. Meeting-length recordings must not be copied through JS memory.
+
+Implementation preference:
+
+- Prefer native, streaming, or platform-level file operations.
+- If Expo cannot safely copy from a temporary recording URI into a public Android SAF destination, document the limitation and use a native storage module or different storage architecture.
+
+The production requirement is:
+
+The file created in the Meeting Recall folder must have the correct name users expect.
+
+---
+
 # File Naming Goals
 
 File names should:
@@ -164,6 +194,16 @@ Renaming inside the app must:
 - persist after app restart
 
 This behavior is critical because NotebookLM upload uses the system file picker.
+
+Implementation expectation:
+
+- Do not rely on direct file rename as the primary strategy.
+- Post-save rename may be deferred for MVP unless safe native file operations are validated.
+- If rename is deferred, any display-title-only editing must be clearly communicated to the user.
+- The preferred MVP behavior is correct filename at initial Save Recording.
+- If post-save rename is later enabled, verify the replacement file exists and has size greater than 0 before updating app metadata.
+- Attempt to delete the old file after replacement succeeds when platform behavior allows it.
+- Old file deletion may be platform-limited and must be handled gracefully.
 
 ---
 

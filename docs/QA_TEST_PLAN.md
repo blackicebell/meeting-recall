@@ -212,6 +212,14 @@ A successful test means:
 ## Expected Result
 - Default name follows:
 YYYY-MM-DD – Meeting Name.m4a
+- App creates the final public file only after Save Recording is confirmed
+- Final file is created in Documents / Meeting Recall
+- Final file exists
+- Final file size is greater than 0
+- App metadata points to the final public file URI
+- Save does not trigger low-memory warnings
+- Save does not use JS/base64 copy for meeting-length recordings
+- Temporary recording file is deleted if safe
 - Recording appears in Recent Recordings
 - File saves locally
 
@@ -245,7 +253,13 @@ YYYY-MM-DD – Meeting Name.m4a
 ## Expected Result
 - UI title updates
 - Actual file name updates in Documents / Meeting Recall
-- Old filename no longer exists if platform behavior allows verification
+- If post-save rename is enabled, it uses a proven safe native file operation
+- If post-save rename is enabled, replacement file exists
+- If post-save rename is enabled, replacement file size is greater than 0
+- If post-save rename is enabled, app metadata points to the replacement file URI
+- If post-save rename is enabled, old filename no longer exists if platform behavior allows verification
+- If post-save rename is deferred for MVP, the app clearly communicates that only the display title changes
+- Rename/copy attempts do not trigger low-memory warnings
 - Rename persists after app restart
 
 ---

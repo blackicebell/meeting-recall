@@ -157,6 +157,18 @@ If a user renames a recording:
 
 This is critical because users upload from the system file picker, not from inside Meeting Recall.
 
+Direct rename is unreliable on the tested Android setup.
+
+Production approach:
+
+- Avoid needing to rename public files during the normal save flow.
+- Record to a temporary app-controlled file first.
+- After the user confirms Save Recording, create the final public file in Documents / Meeting Recall with the correct title-based filename.
+- Post-save rename may be deferred for MVP unless safe native file operations are validated.
+- Memory-heavy copy-and-replace should not be used for meeting-length recordings.
+- If post-save rename is enabled later, attempt to delete the old file after the replacement file is verified.
+- Old file deletion may be platform-limited and should be handled gracefully.
+
 ---
 
 # “Recent Files” Optimization
@@ -180,6 +192,11 @@ The app should:
 3. Prepare file for sharing/file picker visibility
 4. Open helper screen
 5. Open NotebookLM app or browser
+
+Before this flow, the saved recording should already exist as a final public file in Documents / Meeting Recall with the expected filename:
+YYYY-MM-DD – Meeting Name.m4a
+
+The normal save flow should create this file after the user confirms the title, rather than saving publicly first and renaming later.
 
 ---
 
@@ -285,7 +302,9 @@ Reliable UX fallback:
 - tell users the file is in Documents / Meeting Recall
 - tell users to browse to that folder from NotebookLM's file picker
 
-Renaming in the app must rename the actual file in Documents / Meeting Recall.
+Renaming in the app must rename the actual file in Documents / Meeting Recall unless rename is explicitly deferred for MVP.
+
+If rename is deferred, the app must communicate clearly when only the display title changes.
 
 ---
 

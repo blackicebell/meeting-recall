@@ -66,6 +66,13 @@ Ensure recordings are easy to find and reliably stored.
 - Files appear in device file browser
 - File names follow:
 YYYY-MM-DD – Meeting Name.m4a
+- Normal save flow records to a temporary URI first
+- Final public file is created only after the user confirms the recording title
+- Final public file exists before app metadata points to it
+- Final public file size is greater than 0
+- Final save does not read meeting-length audio into JS memory
+- Final save uses a proven safe native/platform file operation
+- Temporary file is deleted after final save if safe
 - Duplicate naming conflicts handled
 - File save failures handled gracefully
 - Files persist after app restart
@@ -84,6 +91,12 @@ Allow users to rename recordings clearly and safely.
 - Rename updates UI title
 - Rename updates actual device file name
 - Rename updates the actual file in Documents / Meeting Recall on Android
+- Rename does not rely on direct file rename when direct rename is unreliable
+- Post-save rename is deferred unless safe native file operations are validated
+- If rename is enabled, replacement file exists before metadata updates
+- If rename is enabled, replacement file size is greater than 0
+- If rename is enabled, old file deletion is attempted and failures are handled clearly
+- If only display-title editing is supported, UI clearly explains that the visible file name does not change
 - Invalid characters handled
 - Rename conflicts handled
 - Rename updates instantly
