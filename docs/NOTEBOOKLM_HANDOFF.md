@@ -258,6 +258,37 @@ Meeting Recall should NOT:
 
 # Technical Expectations
 
+# Android File Picker Reality
+
+Android MVP save location:
+
+Documents / Meeting Recall
+
+Open NotebookLM should prepare the file before opening NotebookLM.
+
+Preparation should:
+- verify the file exists
+- use the latest display name
+- preserve the filename format:
+YYYY-MM-DD – Meeting Name.m4a
+- create or refresh an export-ready copy when timestamp refresh is unreliable
+- make the file as discoverable as platform rules allow
+
+Important:
+
+NotebookLM Recents visibility may not be guaranteed.
+
+Do not claim Meeting Recall can force Recents visibility unless real-device testing proves it.
+
+Reliable UX fallback:
+- show the exact filename
+- tell users the file is in Documents / Meeting Recall
+- tell users to browse to that folder from NotebookLM's file picker
+
+Renaming in the app must rename the actual file in Documents / Meeting Recall.
+
+---
+
 ## Required Behaviors
 
 - Local file storage

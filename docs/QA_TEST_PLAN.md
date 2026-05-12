@@ -222,11 +222,11 @@ YYYY-MM-DD – Meeting Name.m4a
 ## Steps
 1. Save a recording
 2. Open device file browser
-3. Find Meeting Recall folder
+3. Find Documents / Meeting Recall folder on Android
 4. Locate recording
 
 ## Expected Result
-- Meeting Recall folder exists
+- Documents / Meeting Recall folder exists on Android
 - Recording is visible
 - File name is readable
 - File is accessible outside the app
@@ -244,7 +244,8 @@ YYYY-MM-DD – Meeting Name.m4a
 
 ## Expected Result
 - UI title updates
-- Actual file name updates
+- Actual file name updates in Documents / Meeting Recall
+- Old filename no longer exists if platform behavior allows verification
 - Rename persists after app restart
 
 ---
@@ -285,13 +286,16 @@ YYYY-MM-DD – Meeting Name.m4a
 1. Record meeting
 2. Save
 3. Tap Open NotebookLM
-4. Follow helper screen
-5. Upload file in NotebookLM
+4. Confirm the app prepares the file first
+5. Follow helper screen
+6. Upload file in NotebookLM
 
 ## Expected Result
 - NotebookLM opens
 - User understands what to do
-- Recording is easy to find
+- Helper shows exact filename
+- Helper tells user to look in Documents / Meeting Recall if Recents does not show the file
+- Recording is easy to find by browsing to Documents / Meeting Recall
 - Upload works
 
 ---
@@ -304,13 +308,33 @@ YYYY-MM-DD – Meeting Name.m4a
 3. Return later
 4. Open old recording
 5. Tap Open NotebookLM
-6. Upload file in NotebookLM
+6. Confirm the app prepares the file first
+7. Upload file in NotebookLM
 
 ## Expected Result
 - Old recording is just as easy to use
 - File is accessible
 - File name is recognizable
-- User does not need to search extensively
+- Helper shows exact filename and Documents / Meeting Recall fallback
+- User does not need to search extensively if Recents fails
+
+---
+
+# 13A. NotebookLM Recents Fallback Test
+
+## Steps
+1. Save a recording to Documents / Meeting Recall
+2. Tap Open NotebookLM
+3. Attempt upload from NotebookLM
+4. Check whether file appears in Recents
+5. If it does not appear, browse to Documents / Meeting Recall
+6. Select the exact filename shown in the helper
+
+## Expected Result
+- App does not promise Recents visibility
+- User has exact filename
+- User has clear folder fallback
+- Upload succeeds from Documents / Meeting Recall
 
 ---
 

@@ -83,6 +83,7 @@ Allow users to rename recordings clearly and safely.
 ## Done Checklist
 - Rename updates UI title
 - Rename updates actual device file name
+- Rename updates the actual file in Documents / Meeting Recall on Android
 - Invalid characters handled
 - Rename conflicts handled
 - Rename updates instantly
@@ -154,9 +155,13 @@ Make recordings extremely easy to upload into NotebookLM.
 
 ## Done Checklist
 - Open NotebookLM CTA works
+- Open NotebookLM prepares the file before opening NotebookLM
 - Browser fallback works if app unavailable
 - Helper/interstitial screen appears
-- Recording easy to find in Recents
+- Recording easy to find in Recents if platform behavior allows it
+- Helper provides fallback guidance when Recents does not show the file
+- Helper shows exact filename
+- Helper tells users to browse to Documents / Meeting Recall
 - Recording accessible from file picker
 - File naming easy to identify
 - Flow works for both new and old recordings
@@ -172,7 +177,7 @@ Prevent users from losing recordings or struggling to locate them.
 
 ## Done Checklist
 - Files visible in Files/Documents app
-- Meeting Recall folder exists
+- Documents / Meeting Recall folder exists on Android
 - Folder persists
 - File export prep works
 - Storage permissions handled

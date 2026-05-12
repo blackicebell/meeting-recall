@@ -12,7 +12,6 @@ import {
   useAudioRecorderState
 } from "expo-audio";
 import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
 
 import { Screen } from "../../components/ui";
 import { theme } from "../../constants/theme";
@@ -24,6 +23,9 @@ type SpikeRecordingStatus = "idle" | "preparing" | "recording" | "paused" | "sto
 type FileCheckStatus = "not checked" | "exists" | "missing";
 
 const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
+const ANDROID_EXPORT_PARENT_FOLDER = "Documents";
+const DEFAULT_RECORDING_TITLE = "Test Recording";
+const TEST_RENAME_TITLE = "Renamed Test Recording";
 
 function formatMillis(milliseconds: number) {
   const totalSeconds = Math.floor(milliseconds / 1000);
@@ -41,13 +43,33 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function getSpikeFileName() {
+function getDatePrefix() {
   const today = new Date();
   const year = today.getFullYear();
   const month = String(today.getMonth() + 1).padStart(2, "0");
   const day = String(today.getDate()).padStart(2, "0");
 
-  return `${year}-${month}-${day} \u2013 Test Recording.m4a`;
+  return `${year}-${month}-${day}`;
+}
+
+function sanitizeRecordingTitle(title: string) {
+  return title
+    .replace(/[\\/:*?"<>|]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim() || DEFAULT_RECORDING_TITLE;
+}
+
+function buildRecordingFileName(title: string) {
+  return `${getDatePrefix()} \u2013 ${sanitizeRecordingTitle(title)}.m4a`;
+}
+
+function getFileNameFromUri(uri: string | null) {
+  if (!uri) {
+    return "none";
+  }
+
+  const lastSegment = uri.split("/").pop() ?? uri;
+  return decodeURIComponent(lastSegment);
 }
 
 export function RecordingScreen({ navigation }: Props) {
@@ -55,10 +77,17 @@ export function RecordingScreen({ navigation }: Props) {
   const [recordingStatus, setRecordingStatus] = useState<SpikeRecordingStatus>("idle");
   const [savedFileUri, setSavedFileUri] = useState<string | null>(null);
   const [exportedFileUri, setExportedFileUri] = useState<string | null>(null);
+  const [preparedFileUri, setPreparedFileUri] = useState<string | null>(null);
   const [meetingRecallFolderUri, setMeetingRecallFolderUri] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState(DEFAULT_RECORDING_TITLE);
+  const [actualFileName, setActualFileName] = useState(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
   const [copyStatus, setCopyStatus] = useState("not copied");
+  const [prepareStatus, setPrepareStatus] = useState("not prepared");
+  const [renameStatus, setRenameStatus] = useState("not renamed");
   const [originalFileCheck, setOriginalFileCheck] = useState<FileCheckStatus>("not checked");
   const [exportedFileCheck, setExportedFileCheck] = useState<FileCheckStatus>("not checked");
+  const [preparedFileCheck, setPreparedFileCheck] = useState<FileCheckStatus>("not checked");
+  const [oldRenamedFileCheck, setOldRenamedFileCheck] = useState<FileCheckStatus>("not checked");
   const [shareStatus, setShareStatus] = useState("not shared");
   const [notebookLmStatus, setNotebookLmStatus] = useState("not opened");
   const [lastError, setLastError] = useState<string | null>(null);
@@ -68,7 +97,7 @@ export function RecordingScreen({ navigation }: Props) {
   const playerSource = useMemo(() => (savedFileUri ? { uri: savedFileUri } : null), [savedFileUri]);
   const player = useAudioPlayer(playerSource, { updateInterval: 250 });
   const playerStatus = useAudioPlayerStatus(player);
-  const spikeFileName = useMemo(() => getSpikeFileName(), []);
+  const currentFileName = useMemo(() => buildRecordingFileName(displayName), [displayName]);
 
   useEffect(() => {
     async function loadPermissionStatus() {
@@ -128,10 +157,17 @@ export function RecordingScreen({ navigation }: Props) {
       recorder.record();
       setSavedFileUri(null);
       setExportedFileUri(null);
+      setPreparedFileUri(null);
       setMeetingRecallFolderUri(null);
+      setDisplayName(DEFAULT_RECORDING_TITLE);
+      setActualFileName(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
       setCopyStatus("not copied");
+      setPrepareStatus("not prepared");
+      setRenameStatus("not renamed");
       setOriginalFileCheck("not checked");
       setExportedFileCheck("not checked");
+      setPreparedFileCheck("not checked");
+      setOldRenamedFileCheck("not checked");
       setShareStatus("not shared");
       setNotebookLmStatus("not opened");
       setRecordingStatus("recording");
@@ -232,6 +268,31 @@ export function RecordingScreen({ navigation }: Props) {
     }
   }
 
+  async function testPreparedFileExists(uri = preparedFileUri) {
+    try {
+      setLastError(null);
+
+      if (!uri) {
+        setPreparedFileCheck("missing");
+        setLastError("No prepared NotebookLM file URI is available yet.");
+        return false;
+      }
+
+      const fileInfo = await FileSystem.getInfoAsync(uri);
+      setPreparedFileCheck(fileInfo.exists ? "exists" : "missing");
+
+      if (!fileInfo.exists) {
+        setLastError("Prepared NotebookLM file could not be found.");
+      }
+
+      return fileInfo.exists;
+    } catch (error) {
+      setPreparedFileCheck("missing");
+      setLastError(`Unable to check prepared file: ${getErrorMessage(error)}`);
+      return false;
+    }
+  }
+
   async function getOrCreateMeetingRecallFolder(parentDirectoryUri: string) {
     try {
       return await FileSystem.StorageAccessFramework.makeDirectoryAsync(
@@ -245,10 +306,49 @@ export function RecordingScreen({ navigation }: Props) {
     }
   }
 
+  async function writeRecordingToSafFile(sourceUri: string, destinationUri: string) {
+    const recordingBase64 = await FileSystem.readAsStringAsync(sourceUri, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+
+    await FileSystem.StorageAccessFramework.writeAsStringAsync(destinationUri, recordingBase64, {
+      encoding: FileSystem.EncodingType.Base64
+    });
+  }
+
+  async function createSafAudioFile(folderUri: string, fileName: string) {
+    const extension = ".m4a";
+    const baseName = fileName.replace(/\.m4a$/i, "");
+
+    for (let index = 1; index <= 5; index += 1) {
+      const candidateName = index === 1 ? fileName : `${baseName} (${index})${extension}`;
+
+      try {
+        return {
+          fileName: candidateName,
+          uri: await FileSystem.StorageAccessFramework.createFileAsync(
+            folderUri,
+            candidateName,
+            "audio/mp4"
+          )
+        };
+      } catch {
+        // Try the next suffix. Android document providers differ in how they handle duplicates.
+      }
+    }
+
+    const fallbackName = `${baseName} (${Date.now()})${extension}`;
+
+    return {
+      fileName: fallbackName,
+      uri: await FileSystem.StorageAccessFramework.createFileAsync(folderUri, fallbackName, "audio/mp4")
+    };
+  }
+
   async function copyToMeetingRecallFolder() {
     try {
       setLastError(null);
-      setCopyStatus("copying");
+      setCopyStatus(`choose ${ANDROID_EXPORT_PARENT_FOLDER}, not phone root`);
 
       if (Platform.OS !== "android") {
         setCopyStatus("unsupported");
@@ -269,7 +369,10 @@ export function RecordingScreen({ navigation }: Props) {
         return;
       }
 
-      const permissions = await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync();
+      const initialFolderUri =
+        FileSystem.StorageAccessFramework.getUriForDirectoryInRoot(ANDROID_EXPORT_PARENT_FOLDER);
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(initialFolderUri);
 
       if (!permissions.granted) {
         setCopyStatus("permission denied");
@@ -278,24 +381,97 @@ export function RecordingScreen({ navigation }: Props) {
       }
 
       const folderUri = await getOrCreateMeetingRecallFolder(permissions.directoryUri);
-      const destinationFileUri = await FileSystem.StorageAccessFramework.createFileAsync(
-        folderUri,
-        spikeFileName,
-        "audio/mp4"
-      );
-
-      await FileSystem.StorageAccessFramework.copyAsync({
-        from: savedFileUri,
-        to: destinationFileUri
-      });
+      const destination = await createSafAudioFile(folderUri, currentFileName);
+      await writeRecordingToSafFile(savedFileUri, destination.uri);
 
       setMeetingRecallFolderUri(folderUri);
-      setExportedFileUri(destinationFileUri);
+      setExportedFileUri(destination.uri);
+      setPreparedFileUri(null);
+      setActualFileName(destination.fileName);
       setCopyStatus("copied");
-      await testExportedFileExists(destinationFileUri);
+      await testExportedFileExists(destination.uri);
     } catch (error) {
       setCopyStatus("failed");
       setLastError(`Unable to copy file: ${getErrorMessage(error)}`);
+    }
+  }
+
+  async function renameExportedFileForSpike() {
+    try {
+      setLastError(null);
+      setRenameStatus("renaming");
+      setOldRenamedFileCheck("not checked");
+
+      if (!meetingRecallFolderUri || !exportedFileUri) {
+        setRenameStatus("failed");
+        setLastError("Copy a recording to the Meeting Recall folder before testing rename.");
+        return;
+      }
+
+      const newDisplayName = sanitizeRecordingTitle(TEST_RENAME_TITLE);
+      const newFileName = buildRecordingFileName(newDisplayName);
+      const renamedFile = await createSafAudioFile(meetingRecallFolderUri, newFileName);
+      await writeRecordingToSafFile(exportedFileUri, renamedFile.uri);
+      await FileSystem.StorageAccessFramework.deleteAsync(exportedFileUri, { idempotent: true });
+
+      const newExists = await FileSystem.getInfoAsync(renamedFile.uri);
+      const oldExists = await FileSystem.getInfoAsync(exportedFileUri);
+
+      setDisplayName(newDisplayName);
+      setActualFileName(renamedFile.fileName);
+      setExportedFileUri(renamedFile.uri);
+      setPreparedFileUri(null);
+      setExportedFileCheck(newExists.exists ? "exists" : "missing");
+      setOldRenamedFileCheck(oldExists.exists ? "exists" : "missing");
+      setRenameStatus(newExists.exists && !oldExists.exists ? "renamed" : "needs review");
+    } catch (error) {
+      setRenameStatus("failed");
+      setLastError(`Unable to rename exported file: ${getErrorMessage(error)}`);
+    }
+  }
+
+  async function prepareForNotebookLm() {
+    try {
+      setLastError(null);
+      setPrepareStatus("preparing");
+
+      const sourceUri = exportedFileUri ?? savedFileUri;
+
+      if (!sourceUri) {
+        setPrepareStatus("failed");
+        setLastError("No recording file is available to prepare.");
+        return;
+      }
+
+      const sourceInfo = await FileSystem.getInfoAsync(sourceUri);
+
+      if (!sourceInfo.exists) {
+        setPrepareStatus("failed");
+        setLastError("Recording file could not be found before NotebookLM prep.");
+        return;
+      }
+
+      if (!meetingRecallFolderUri) {
+        setPrepareStatus("needs Meeting Recall folder");
+        setLastError("Copy to the Meeting Recall folder before preparing for NotebookLM.");
+        return;
+      }
+
+      if (preparedFileUri) {
+        await FileSystem.StorageAccessFramework.deleteAsync(preparedFileUri, { idempotent: true });
+      }
+
+      const preparedFile = await createSafAudioFile(meetingRecallFolderUri, currentFileName);
+      await writeRecordingToSafFile(sourceUri, preparedFile.uri);
+
+      setPreparedFileUri(preparedFile.uri);
+      setActualFileName(preparedFile.fileName);
+      setPrepareStatus("prepared fresh export copy");
+      await testPreparedFileExists(preparedFile.uri);
+      await openNotebookLm();
+    } catch (error) {
+      setPrepareStatus("failed");
+      setLastError(`Unable to prepare file for NotebookLM: ${getErrorMessage(error)}`);
     }
   }
 
@@ -304,7 +480,7 @@ export function RecordingScreen({ navigation }: Props) {
       setLastError(null);
       setShareStatus("preparing");
 
-      const fileToShare = exportedFileUri ?? savedFileUri;
+      const fileToShare = preparedFileUri ?? exportedFileUri ?? savedFileUri;
 
       if (!fileToShare) {
         setShareStatus("failed");
@@ -312,6 +488,7 @@ export function RecordingScreen({ navigation }: Props) {
         return;
       }
 
+      const Sharing = await import("expo-sharing");
       const sharingAvailable = await Sharing.isAvailableAsync();
 
       if (!sharingAvailable) {
@@ -379,6 +556,7 @@ export function RecordingScreen({ navigation }: Props) {
   const canStopPlayback = playerStatus.playing;
   const canCopyFile = Boolean(savedFileUri);
   const canShareFile = Boolean(savedFileUri || exportedFileUri);
+  const canPrepareFile = Boolean(savedFileUri || exportedFileUri);
 
   return (
     <Screen>
@@ -404,12 +582,28 @@ export function RecordingScreen({ navigation }: Props) {
           onPress={copyToMeetingRecallFolder}
           primary
         />
-        <SpikeButton disabled={!canShareFile} label="Share File" onPress={shareFile} />
-        <SpikeButton disabled={!savedFileUri} label="Test Original File Exists" onPress={() => testOriginalFileExists()} />
         <SpikeButton
           disabled={!exportedFileUri}
-          label="Test Exported File Exists"
+          label="Test Rename Actual File"
+          onPress={renameExportedFileForSpike}
+        />
+        <SpikeButton
+          disabled={!canPrepareFile}
+          label="Prepare for NotebookLM"
+          onPress={prepareForNotebookLm}
+          primary
+        />
+        <SpikeButton disabled={!canShareFile} label="Share File" onPress={shareFile} />
+        <SpikeButton disabled={!savedFileUri} label="Test Current Original File Exists" onPress={() => testOriginalFileExists()} />
+        <SpikeButton
+          disabled={!exportedFileUri}
+          label="Test Current Exported/Renamed File Exists"
           onPress={() => testExportedFileExists()}
+        />
+        <SpikeButton
+          disabled={!preparedFileUri}
+          label="Test Prepared NotebookLM File Exists"
+          onPress={() => testPreparedFileExists()}
         />
         <SpikeButton label="Open NotebookLM" onPress={openNotebookLm} />
         <SpikeButton label="Back to Home" onPress={() => navigation.navigate("Home")} />
@@ -424,12 +618,19 @@ export function RecordingScreen({ navigation }: Props) {
         <DebugRow label="Recording duration" value={formatMillis(recorderState.durationMillis)} />
         <DebugRow label="Recorder URL" value={recorderState.url ?? "none"} />
         <DebugRow label="Original recording URI" value={savedFileUri ?? "none"} />
-        <DebugRow label="Meeting Recall folder URI" value={meetingRecallFolderUri ?? "none"} />
+        <DebugRow label="Permanent Meeting Recall folder URI" value={meetingRecallFolderUri ?? "none"} />
+        <DebugRow label="Current display name" value={displayName} />
+        <DebugRow label="Actual file name" value={actualFileName} />
         <DebugRow label="Exported/copied file URI" value={exportedFileUri ?? "none"} />
-        <DebugRow label="File name" value={spikeFileName} />
+        <DebugRow label="Prepared NotebookLM file URI" value={preparedFileUri ?? "none"} />
+        <DebugRow label="URI file name fallback" value={getFileNameFromUri(preparedFileUri ?? exportedFileUri)} />
         <DebugRow label="Original file exists" value={originalFileCheck} />
-        <DebugRow label="Exported file exists" value={exportedFileCheck} />
+        <DebugRow label="Current exported/renamed file exists" value={exportedFileCheck} />
+        <DebugRow label="Prepared NotebookLM file exists" value={preparedFileCheck} />
+        <DebugRow label="Old renamed file exists" value={oldRenamedFileCheck} />
         <DebugRow label="Copy/export status" value={copyStatus} />
+        <DebugRow label="Prepare status" value={prepareStatus} />
+        <DebugRow label="Rename status" value={renameStatus} />
         <DebugRow label="Share status" value={shareStatus} />
         <DebugRow label="NotebookLM status" value={notebookLmStatus} />
         <DebugRow label="Playback loaded" value={String(playerStatus.isLoaded)} />
