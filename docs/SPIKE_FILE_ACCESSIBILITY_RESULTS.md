@@ -230,15 +230,19 @@ Implemented spike behavior:
 3. The filename preserves the .m4a extension.
 4. The filename preserves the product format:
 YYYY-MM-DD – Meeting Name.m4a
-5. The spike creates a new actual audio file in the selected Meeting Recall folder.
-6. The spike copies audio bytes into the new file.
-7. The spike deletes the old exported/prepared file.
-8. The spike updates the app display/debug name.
-9. The spike verifies the new file exists.
-10. The spike verifies the old file no longer exists if possible.
-11. Invalid filename characters are sanitized.
-12. Empty names are rejected.
-13. Duplicate file creation is handled by adding a safe suffix when needed.
+5. The spike first determines whether the current file URI supports direct rename/move.
+6. If direct rename works, it moves the file and verifies the new file exists and the old file is gone.
+7. If direct rename does not work, it uses copy-and-replace:
+   - create a new actual audio file in the selected Meeting Recall folder
+   - copy audio bytes into the new file
+   - verify the new file exists
+   - verify the new file size is greater than 0
+   - attempt to delete the old exported/prepared file
+   - update app metadata to point to the new file URI
+8. The spike updates the app display/debug name only after the new file exists.
+9. Invalid filename characters are sanitized.
+10. Empty names are rejected.
+11. Duplicate file creation is handled by adding a safe suffix when needed.
 
 Debug output includes:
 
@@ -246,20 +250,42 @@ Debug output includes:
 - new filename
 - old URI/path
 - new URI/path
+- rename strategy used: direct rename or copy-and-replace
+- new file size
+- old file deleted true/false
+- final active file URI
 - rename success/failure
 - file exists checks
 
 Required product behavior:
 
-Renaming in the app must rename the actual file in Documents / Meeting Recall because NotebookLM upload happens through the system file picker.
+Renaming in the app must rename the actual visible file in Documents / Meeting Recall because NotebookLM upload happens through the system file picker.
 
-Still needs real-device validation.
+Real Android observation:
+
+- Direct rename failed on the tested Android build.
+- The app display name could change while the actual visible filename did not change.
+- That is not acceptable for production.
 
 Android limitation:
 
 Storage Access Framework does not behave like a normal filesystem path rename. The spike validates rename by creating a new SAF file, copying the audio bytes, and deleting the old file.
 
 This is acceptable for validation, but production should wrap it carefully so users experience it as a rename.
+
+Old file deletion:
+
+- The spike now attempts to delete the old file after the replacement file is verified.
+- The debug panel reports whether the old file was confirmed deleted.
+- Old-file deletion still needs real-device validation across Android document providers.
+
+Production recommendation:
+
+- Do not rely on direct rename for Android SAF files.
+- Treat copy-and-replace as the production fallback when direct rename is unavailable.
+- Only update the app's active recording metadata after the replacement file exists and has a non-zero size.
+- If the old file cannot be deleted, show that clearly in logs/debug during development and consider a cleanup path before launch.
+- The final product requirement is that the visible filename in the Meeting Recall folder matches the user's renamed title, regardless of whether that happens through direct rename or copy-and-replace.
 
 ---
 
@@ -296,7 +322,7 @@ Confirmed in code/typecheck:
 - NotebookLM can be opened with Linking
 - Android SAF export uses binary-safe base64 read/write instead of copyAsync
 - Prepare for NotebookLM creates a fresh export-ready copy
-- Rename test updates display name and attempts actual file replacement
+- Rename test now validates direct rename first, then falls back to copy-and-replace when direct rename is unavailable
 
 ---
 
@@ -438,7 +464,15 @@ This still needs real Android validation.
 
 ## Rename Sync
 
-Rename synchronization is now represented in the spike but still needs real Android validation.
+Rename synchronization is now represented in the spike and direct rename failed on the tested Android build.
+
+The fallback strategy is:
+
+- create a replacement file with the renamed title
+- copy the audio bytes into it
+- verify the replacement exists and is larger than 0 bytes
+- attempt to delete the old file
+- update app metadata to the replacement file URI
 
 The required final behavior is:
 
@@ -447,6 +481,13 @@ The required final behavior is:
 - old file is removed
 - new file remains playable
 - NotebookLM can find the renamed file
+
+Remaining validation:
+
+- confirm old file deletion reports true on the tested Android provider
+- confirm the renamed replacement file appears visibly in Android Files
+- confirm the renamed replacement file remains playable
+- confirm NotebookLM sees the renamed filename in the picker
 
 ## iOS Is Untested
 

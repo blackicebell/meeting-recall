@@ -21,6 +21,20 @@ type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
 type SpikeRecordingStatus = "idle" | "preparing" | "recording" | "paused" | "stopped";
 type FileCheckStatus = "not checked" | "exists" | "missing";
+type RenameAttempt = {
+  fileName: string;
+  oldDeleted: boolean;
+  size: number | null;
+  strategy: string;
+  uri: string;
+};
+
+type DirectRenameResult =
+  | RenameAttempt
+  | {
+      didRename: false;
+      reason: string;
+    };
 
 const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
 const ANDROID_EXPORT_PARENT_FOLDER = "Documents";
@@ -102,6 +116,12 @@ function getStoredSafFolderFileUri() {
     : null;
 }
 
+function getFileSizeDebug(fileInfo: Awaited<ReturnType<typeof FileSystem.getInfoAsync>>) {
+  return fileInfo.exists && "size" in fileInfo && typeof fileInfo.size === "number"
+    ? fileInfo.size
+    : null;
+}
+
 export function RecordingScreen({ navigation }: Props) {
   const [permissionStatus, setPermissionStatus] = useState("unknown");
   const [recordingStatus, setRecordingStatus] = useState<SpikeRecordingStatus>("idle");
@@ -118,6 +138,10 @@ export function RecordingScreen({ navigation }: Props) {
   const [renameNewFileName, setRenameNewFileName] = useState("none");
   const [renameOldFileUri, setRenameOldFileUri] = useState<string | null>(null);
   const [renameNewFileUri, setRenameNewFileUri] = useState<string | null>(null);
+  const [renameStrategy, setRenameStrategy] = useState("not tested");
+  const [renameNewFileSize, setRenameNewFileSize] = useState("not checked");
+  const [renameOldFileDeleted, setRenameOldFileDeleted] = useState("not checked");
+  const [finalActiveFileUri, setFinalActiveFileUri] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState("not copied");
   const [prepareStatus, setPrepareStatus] = useState("not prepared");
   const [renameStatus, setRenameStatus] = useState("not renamed");
@@ -231,6 +255,10 @@ export function RecordingScreen({ navigation }: Props) {
       setRenameNewFileName("none");
       setRenameOldFileUri(null);
       setRenameNewFileUri(null);
+      setRenameStrategy("not tested");
+      setRenameNewFileSize("not checked");
+      setRenameOldFileDeleted("not checked");
+      setFinalActiveFileUri(null);
       setCopyStatus("not copied");
       setPrepareStatus("not prepared");
       setRenameStatus("not renamed");
@@ -499,6 +527,7 @@ export function RecordingScreen({ navigation }: Props) {
       setMeetingRecallFolderUri(folderUri);
       setExportedFileUri(destination.uri);
       setPreparedFileUri(null);
+      setFinalActiveFileUri(destination.uri);
       setActualFileName(destination.fileName);
       setCopyStatus("copied");
       await testExportedFileExists(destination.uri);
@@ -508,10 +537,110 @@ export function RecordingScreen({ navigation }: Props) {
     }
   }
 
+  async function tryDirectRename(oldFileUri: string, newFileName: string): Promise<DirectRenameResult> {
+    if (oldFileUri.startsWith("content://")) {
+      return {
+        didRename: false,
+        reason: "direct rename unsupported for SAF content URI"
+      };
+    }
+
+    if (!oldFileUri.startsWith("file://")) {
+      return {
+        didRename: false,
+        reason: "direct rename unsupported for this URI scheme"
+      };
+    }
+
+    try {
+      const directoryUri = oldFileUri.slice(0, oldFileUri.lastIndexOf("/") + 1);
+      const newFileUri = `${directoryUri}${encodeURIComponent(newFileName)}`;
+      await FileSystem.moveAsync({ from: oldFileUri, to: newFileUri });
+
+      const newInfo = await FileSystem.getInfoAsync(newFileUri);
+      const oldInfo = await FileSystem.getInfoAsync(oldFileUri);
+
+      if (!newInfo.exists || oldInfo.exists) {
+        return {
+          didRename: false,
+          reason: "direct rename did not produce the expected file state"
+        };
+      }
+
+      return {
+        fileName: newFileName,
+        oldDeleted: !oldInfo.exists,
+        size: getFileSizeDebug(newInfo),
+        strategy: "direct rename",
+        uri: newFileUri
+      };
+    } catch (error) {
+      return {
+        didRename: false,
+        reason: `direct rename failed: ${getErrorMessage(error)}`
+      };
+    }
+  }
+
+  async function deleteOldFileForRename(oldFileUri: string) {
+    try {
+      if (oldFileUri.startsWith("content://")) {
+        await FileSystem.StorageAccessFramework.deleteAsync(oldFileUri);
+      } else {
+        await FileSystem.deleteAsync(oldFileUri, { idempotent: true });
+      }
+
+      const oldInfo = await FileSystem.getInfoAsync(oldFileUri);
+      return {
+        deleted: !oldInfo.exists,
+        message: !oldInfo.exists ? "deleted" : "delete attempted, but old file still exists"
+      };
+    } catch (error) {
+      return {
+        deleted: false,
+        message: `delete failed: ${getErrorMessage(error)}`
+      };
+    }
+  }
+
+  async function copyAndReplaceRename(
+    oldFileUri: string,
+    newFileName: string,
+    directRenameReason: string
+  ): Promise<RenameAttempt> {
+    if (!meetingRecallFolderUri) {
+      throw new Error("No selected Meeting Recall folder URI is available.");
+    }
+
+    const newFile = await createSafAudioFile(meetingRecallFolderUri, newFileName);
+    await writeRecordingToSafFile(oldFileUri, newFile.uri);
+
+    const newInfo = await FileSystem.getInfoAsync(newFile.uri);
+    const newSize = getFileSizeDebug(newInfo);
+
+    if (!newInfo.exists || newSize === null || newSize <= 0) {
+      throw new Error("Copy-and-replace created a missing or empty renamed file.");
+    }
+
+    const oldDeleteResult = await deleteOldFileForRename(oldFileUri);
+
+    return {
+      fileName: newFile.fileName,
+      oldDeleted: oldDeleteResult.deleted,
+      size: newSize,
+      strategy: `copy-and-replace (${directRenameReason}; old ${oldDeleteResult.message})`,
+      uri: newFile.uri
+    };
+  }
+
   async function renameFileForSpike() {
     try {
       setLastError(null);
       setRenameStatus("renaming");
+      setRenameStrategy("testing direct rename support");
+      setRenameNewFileSize("not checked");
+      setRenameOldFileDeleted("not checked");
+      setFinalActiveFileUri(null);
       setOldRenamedFileCheck("not checked");
 
       const fileToRename = exportedFileUri ?? preparedFileUri;
@@ -532,24 +661,39 @@ export function RecordingScreen({ navigation }: Props) {
       const newFileName = buildRecordingFileName(newDisplayName);
       const oldFileName = actualFileName;
       const oldFileUri = fileToRename;
-      const renamedFile = await createSafAudioFile(meetingRecallFolderUri, newFileName);
-      await writeRecordingToSafFile(fileToRename, renamedFile.uri);
-      await FileSystem.StorageAccessFramework.deleteAsync(fileToRename, { idempotent: true });
+      const directRename = await tryDirectRename(oldFileUri, newFileName);
+      const renameResult = "uri" in directRename
+        ? directRename
+        : await copyAndReplaceRename(oldFileUri, newFileName, directRename.reason);
 
-      const newExists = await FileSystem.getInfoAsync(renamedFile.uri);
-      const oldExists = await FileSystem.getInfoAsync(fileToRename);
+      const newExists = await FileSystem.getInfoAsync(renameResult.uri);
+      const oldExists = await FileSystem.getInfoAsync(oldFileUri);
+      const newSize = renameResult.size ?? getFileSizeDebug(newExists);
+      const oldDeleted = renameResult.oldDeleted || !oldExists.exists;
 
       setDisplayName(newDisplayName);
-      setActualFileName(renamedFile.fileName);
-      setExportedFileUri(renamedFile.uri);
+      setActualFileName(renameResult.fileName);
+      setExportedFileUri(renameResult.uri);
       setPreparedFileUri(null);
       setRenameOldFileName(oldFileName);
-      setRenameNewFileName(renamedFile.fileName);
+      setRenameNewFileName(renameResult.fileName);
       setRenameOldFileUri(oldFileUri);
-      setRenameNewFileUri(renamedFile.uri);
+      setRenameNewFileUri(renameResult.uri);
+      setRenameStrategy(renameResult.strategy);
+      setRenameNewFileSize(newSize === null ? "unknown" : String(newSize));
+      setRenameOldFileDeleted(String(oldDeleted));
+      setFinalActiveFileUri(renameResult.uri);
       setExportedFileCheck(newExists.exists ? "exists" : "missing");
       setOldRenamedFileCheck(oldExists.exists ? "exists" : "missing");
-      setRenameStatus(newExists.exists && !oldExists.exists ? "renamed" : "needs review");
+      setRenameStatus(
+        newExists.exists && newSize !== null && newSize > 0
+          ? "renamed visible file"
+          : "needs review"
+      );
+
+      if (!oldDeleted) {
+        setLastError("Renamed file was created, but the old file could not be confirmed deleted.");
+      }
     } catch (error) {
       setRenameStatus("failed");
       setLastError(`Unable to rename file: ${getErrorMessage(error)}`);
@@ -591,6 +735,7 @@ export function RecordingScreen({ navigation }: Props) {
       await writeRecordingToSafFile(sourceUri, preparedFile.uri);
 
       setPreparedFileUri(preparedFile.uri);
+      setFinalActiveFileUri(preparedFile.uri);
       setActualFileName(preparedFile.fileName);
       setPrepareStatus("prepared fresh export copy");
       await testPreparedFileExists(preparedFile.uri);
@@ -781,10 +926,14 @@ export function RecordingScreen({ navigation }: Props) {
         <DebugRow label="Current exported/renamed file exists" value={exportedFileCheck} />
         <DebugRow label="Prepared NotebookLM file exists" value={preparedFileCheck} />
         <DebugRow label="Old renamed file exists" value={oldRenamedFileCheck} />
+        <DebugRow label="Rename strategy used" value={renameStrategy} />
         <DebugRow label="Rename old filename" value={renameOldFileName} />
         <DebugRow label="Rename new filename" value={renameNewFileName} />
         <DebugRow label="Rename old URI" value={renameOldFileUri ?? "none"} />
         <DebugRow label="Rename new URI" value={renameNewFileUri ?? "none"} />
+        <DebugRow label="Rename new file size" value={renameNewFileSize} />
+        <DebugRow label="Rename old file deleted" value={renameOldFileDeleted} />
+        <DebugRow label="Final active file URI" value={finalActiveFileUri ?? "none"} />
         <DebugRow label="Copy/export status" value={copyStatus} />
         <DebugRow label="Prepare status" value={prepareStatus} />
         <DebugRow label="Rename status" value={renameStatus} />
