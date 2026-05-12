@@ -559,6 +559,42 @@ Refine CTA consistency.
 
 ---
 
+# BACKGROUND RECORDING LIMITATION
+
+## P0 - App Must Stay Open Warning
+
+### Gap
+Real Android device testing confirmed recordings do not continue when the screen is locked or when switching apps in the current spike.
+
+### Requirement
+For MVP, clearly warn users before and during recording:
+"Keep Meeting Recall open while recording."
+
+Supporting copy:
+"Locking your screen or switching apps may stop the recording."
+
+---
+
+## P1 - Screen Lock / App Switching State
+
+### Gap
+The user may assume recording continues after locking the phone or switching apps.
+
+### Requirement
+If the app detects interruption or returns from background, show clear recovery/status messaging so users understand whether recording continued.
+
+---
+
+## P2 - True Background Recording Support
+
+### Gap
+The current spike does not support recording while the screen is locked or while another app is active.
+
+### Requirement
+Consider true background recording as a future enhancement if MVP user testing shows this limitation creates too much friction.
+
+---
+
 # FINAL UX SUCCESS DEFINITION
 
 Meeting Recall UI succeeds when:

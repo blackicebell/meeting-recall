@@ -145,9 +145,60 @@ A successful test means:
 5. Stop and save
 
 ## Expected Result
-- Recording continues if platform allows
+- For MVP, recording may stop because true background recording is not currently supported
 - App handles background state gracefully
 - File is not corrupted
+
+---
+
+# 6A. Screen Lock Recording Test
+
+## Steps
+1. Start recording
+2. Lock the phone screen
+3. Wait 1-2 minutes
+4. Unlock the phone
+5. Return to Meeting Recall
+6. Stop and save if recording is still active
+
+## Expected Result
+- For MVP, user-facing copy clearly warns that recordings require the app to stay open.
+- If recording stops, the app explains what happened calmly.
+- App does not crash.
+- Any partial recording is preserved if possible.
+
+---
+
+# 6B. App Switching Recording Test
+
+## Steps
+1. Start recording
+2. Switch to another app
+3. Wait 1-2 minutes
+4. Return to Meeting Recall
+5. Stop and save if recording is still active
+
+## Expected Result
+- For MVP, user-facing copy clearly warns that switching apps may stop recording.
+- If recording stops, the app explains what happened calmly.
+- App does not crash.
+- Any partial recording is preserved if possible.
+
+---
+
+# 6C. Recording Limitation Copy Test
+
+## Steps
+1. Start a recording
+2. Review visible recording guidance
+3. Attempt to lock the screen or switch apps
+
+## Expected Result
+- App includes clear copy such as:
+"Keep Meeting Recall open while recording."
+- Supporting copy explains:
+"Locking your screen or switching apps may stop the recording."
+- Copy is calm, short, and visible before users accidentally lose recording time.
 
 ---
 
@@ -417,6 +468,22 @@ The app should not launch if:
 - NotebookLM handoff confuses users
 - Permissions cause dead ends
 - App crashes during core flows
+
+---
+
+# Future Enhancement Notes
+
+## True Background Recording
+
+Real Android device testing confirmed the current spike does not continue recording when the screen is locked or when switching apps.
+
+For MVP, this is a known limitation that must be communicated clearly.
+
+Future enhancement:
+- investigate native background recording support
+- validate iOS background audio requirements
+- validate Android foreground service requirements
+- test lock screen and app switching behavior across real devices
 
 ---
 

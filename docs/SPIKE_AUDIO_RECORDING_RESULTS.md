@@ -108,6 +108,10 @@ Result:
 
 - Passed
 
+Confirmed on real Android device:
+
+- Recording works while the app is open and active.
+
 ---
 
 # What Does Not Work Yet
@@ -115,10 +119,8 @@ Result:
 Not validated yet:
 
 - real microphone recording on iOS device
-- real microphone recording on Android device
 - actual saved file playback on device
 - long recording stability
-- background recording
 - interruption handling
 - incoming call behavior
 - low storage behavior
@@ -126,7 +128,23 @@ Not validated yet:
 - file visibility outside the app
 - NotebookLM upload discoverability
 
-The current spike only validates the app foundation and API wiring.
+The current spike validates app foundation, API wiring, and basic active Android recording.
+
+---
+
+# Android Physical Device Result
+
+Real Android device testing found:
+
+- Recording works while the app is open and active.
+- Recording does not continue when the screen is locked.
+- Recording does not continue when switching apps.
+- Background recording is not currently supported by the spike.
+- This should be treated as a known MVP limitation unless we decide to invest in native background recording support.
+
+Implication:
+
+For MVP, the app must clearly tell users that recording requires Meeting Recall to stay open and active.
 
 ---
 
@@ -209,6 +227,9 @@ Known risk:
 - Android scoped storage may complicate writing to a visible Meeting Recall folder.
 - device manufacturers may behave differently with background recording.
 - interruption and audio focus behavior need real device validation.
+- Real Android device testing confirmed the current spike does not continue recording when the screen is locked.
+- Real Android device testing confirmed the current spike does not continue recording when switching apps.
+- For MVP, this should be treated as a product limitation unless native background recording support is prioritized.
 
 ## Expo
 
@@ -252,7 +273,11 @@ The current spike does not validate user-accessible storage. This remains one of
 
 ## Background Recording
 
-Background behavior is not proven and may require additional native configuration.
+Background behavior is not supported by the current spike on Android.
+
+For MVP, the app should warn users that recording requires the app to stay open and active.
+
+True background recording should be treated as a future enhancement unless the team decides to invest in native background recording support.
 
 ## Expo Workflow
 
@@ -280,6 +305,8 @@ Test:
 8. play the recording back
 9. stop playback
 10. repeat after app restart if possible
+11. lock the screen during recording
+12. switch apps during recording
 
 After device testing, update this document with actual device results.
 

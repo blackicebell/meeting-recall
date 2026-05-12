@@ -61,12 +61,6 @@ export function RecordingScreen({ navigation }: Props) {
     loadPermissionStatus();
   }, []);
 
-  useEffect(() => {
-    return () => {
-      player.pause();
-    };
-  }, [player]);
-
   async function requestPermission() {
     try {
       setLastError(null);
