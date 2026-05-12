@@ -52,15 +52,28 @@ After recording stops, the screen can show:
 - prepared NotebookLM file URI
 - prepare status
 - rename status
+- rename input
+- old rename filename
+- new rename filename
+- old rename URI/path
+- new rename URI/path
+- storage method used
+- app documentDirectory
+- app cacheDirectory
+- selected SAF folder URI
+- SAF usage status
+- folder persistence status
 - errors
 
 Added actions:
 
 - Copy to Meeting Recall Folder
+- Choose Meeting Recall Folder
 - Share File
 - Test Original File Exists
 - Test Exported File Exists
 - Test Rename Actual File
+- Rename text input
 - Prepare for NotebookLM
 - Test Prepared NotebookLM File Exists
 - Open NotebookLM
@@ -107,8 +120,79 @@ Real device observation:
 - The spike now uses base64 read/write for the SAF export path because Android SAF destinations are content URIs, not normal file paths.
 - Real Android testing confirmed recordings can save to Documents / Meeting Recall.
 - Real Android testing found the recording was not easy to find from NotebookLM's Recents/file picker.
+- Real Android testing found the Meeting Recall folder was not easy to find manually in Android Files/Documents after the app reported a save.
+- This means the save location may be app-internal, hidden by Android scoped storage, provider-specific, or not user-obvious enough.
 - Recents visibility should not be treated as guaranteed.
 - The reliable fallback is to show the exact filename and tell the user to look in Documents / Meeting Recall.
+
+---
+
+# Current Android Visibility Issue
+
+Observed result:
+
+- The app says it saves to Documents / Meeting Recall.
+- The folder was not findable manually in Android Files/Documents.
+
+Conclusion:
+
+Do not claim the file is saved to a user-accessible Documents folder unless it is actually visible in Android Files and selectable from NotebookLM upload.
+
+The spike now displays the exact storage method and URI so we can tell the difference between:
+
+- app internal directory
+- cache directory
+- documentDirectory
+- Storage Access Framework URI
+- public/shared folder behavior
+
+---
+
+# Storage Method Debugging
+
+The spike now shows:
+
+- original storage method
+- app documentDirectory
+- app cacheDirectory
+- selected SAF folder URI
+- selected folder storage method
+- saved/exported file URI
+- prepared NotebookLM file URI
+- SAF used true/false
+- file exists result
+- copy success/failure
+
+This is meant to prevent a false positive where the app has a valid URI but the user cannot locate the file.
+
+---
+
+# Choose Meeting Recall Folder
+
+The spike now includes a separate:
+
+Choose Meeting Recall Folder
+
+action.
+
+This uses Android Storage Access Framework and asks the user to select a real visible folder.
+
+Recommended test behavior:
+
+1. In Android Files, create or select a visible Meeting Recall folder under Documents.
+2. Use the app's Choose Meeting Recall Folder action.
+3. Select that exact visible folder.
+4. Copy the recording into the selected folder.
+5. Confirm the file is visible manually in Android Files.
+6. Confirm the same file can be selected from NotebookLM upload.
+
+Important:
+
+User-selected SAF folder access is currently more reliable for validation than automatic folder creation.
+
+The spike attempts to persist the selected SAF folder URI in app documentDirectory.
+
+Persistence still needs real-device validation because Android document provider grants may not behave identically across devices or restarts.
 
 ---
 
@@ -117,10 +201,10 @@ Real device observation:
 Implemented behavior:
 
 1. Verify a recording/export file exists.
-2. Require a Meeting Recall folder URI from the copy/export step.
+2. Require a selected SAF Meeting Recall folder URI.
 3. Preserve the product filename format:
 YYYY-MM-DD – Meeting Name.m4a
-4. Attempt to improve discoverability by creating a fresh export-ready copy in Documents / Meeting Recall.
+4. Attempt to improve discoverability by creating a fresh export-ready copy in the selected SAF folder.
 5. Store and display the prepared file URI.
 6. Verify the prepared file exists.
 7. Open NotebookLM.
@@ -141,20 +225,41 @@ If Recents does not show the file, the helper UX must tell users:
 
 Implemented spike behavior:
 
-1. Test action updates the app display name.
-2. Test action creates a new actual file using the new display name.
-3. Test action copies audio bytes into the new file.
-4. Test action deletes the old exported file.
-5. Test action verifies the new file exists.
-6. Test action verifies the old file no longer exists if possible.
-7. Invalid filename characters are sanitized.
-8. Duplicate file creation is handled by adding a safe suffix when needed.
+1. User enters a new recording name in a simple text input.
+2. Test Rename File sanitizes the new name.
+3. The filename preserves the .m4a extension.
+4. The filename preserves the product format:
+YYYY-MM-DD – Meeting Name.m4a
+5. The spike creates a new actual audio file in the selected Meeting Recall folder.
+6. The spike copies audio bytes into the new file.
+7. The spike deletes the old exported/prepared file.
+8. The spike updates the app display/debug name.
+9. The spike verifies the new file exists.
+10. The spike verifies the old file no longer exists if possible.
+11. Invalid filename characters are sanitized.
+12. Empty names are rejected.
+13. Duplicate file creation is handled by adding a safe suffix when needed.
+
+Debug output includes:
+
+- old filename
+- new filename
+- old URI/path
+- new URI/path
+- rename success/failure
+- file exists checks
 
 Required product behavior:
 
 Renaming in the app must rename the actual file in Documents / Meeting Recall because NotebookLM upload happens through the system file picker.
 
 Still needs real-device validation.
+
+Android limitation:
+
+Storage Access Framework does not behave like a normal filesystem path rename. The spike validates rename by creating a new SAF file, copying the audio bytes, and deleting the old file.
+
+This is acceptable for validation, but production should wrap it carefully so users experience it as a rename.
 
 ---
 
@@ -185,6 +290,8 @@ Confirmed in code/typecheck:
 - Android SAF APIs are available
 - Exported/copied file URI can be displayed
 - Exported/copied file existence can be checked
+- Selected SAF folder URI can be displayed
+- Storage method can be displayed
 - Native share sheet API is available
 - NotebookLM can be opened with Linking
 - Android SAF export uses binary-safe base64 read/write instead of copyAsync
@@ -198,6 +305,7 @@ Confirmed in code/typecheck:
 Not validated yet:
 
 - whether Android copied file appears in the system file picker
+- whether the selected SAF folder remains accessible after app restart
 - whether the file appears in Recents reliably
 - whether NotebookLM can select the copied/prepared file during upload
 - whether the file name is preserved exactly in all Android picker surfaces
@@ -286,11 +394,26 @@ Android SAF requires user folder selection. This may feel less automatic than th
 
 The phone root cannot be selected. Users must choose a writable parent folder such as Documents.
 
+## User-Selected Folder Is More Reliable
+
+Based on testing so far, a user-selected folder is more reliable for validation than automatic folder creation.
+
+Recommended production direction:
+
+- ask the user to choose or create Meeting Recall inside Documents during setup
+- save the selected SAF folder URI
+- always show the exact folder and filename before NotebookLM handoff
+- never rely only on Recents
+
 ## Meeting Recall Folder Creation
 
 The app attempts to create a Meeting Recall folder inside the selected parent folder.
 
 If folder creation fails because the folder already exists, the spike falls back to the selected folder. This is acceptable for testing but not final product behavior.
+
+Current concern:
+
+Automatic folder creation may not produce a folder that is obvious or findable enough in Android Files across devices.
 
 ## SAF Copy Method
 
@@ -343,21 +466,22 @@ Test:
 
 1. Record a short file.
 2. Confirm original file exists.
-3. Tap "Copy to Meeting Recall Folder".
-4. Select Documents or another writable user-visible folder. Do not select the phone root.
-5. Confirm a Meeting Recall folder is created or selected.
-6. Confirm the exported file exists.
-7. Open Android Files and find the recording.
-8. Play the exported file from Android Files.
-9. Tap Test Rename Actual File.
-10. Confirm the renamed file exists.
-11. Confirm the old file no longer exists if applicable.
-12. Play the renamed file from Android Files.
-13. Tap Prepare for NotebookLM.
-14. Try uploading the prepared file from NotebookLM.
-15. If Recents does not show the file, browse to Documents / Meeting Recall.
-16. Confirm whether NotebookLM accepts the prepared file.
-17. Confirm whether the filename is preserved.
+3. In Android Files, create a visible Documents / Meeting Recall folder if needed.
+4. Tap Choose Meeting Recall Folder in the app.
+5. Select the visible Meeting Recall folder.
+6. Tap Copy to Selected Folder.
+7. Confirm the exported file exists.
+8. Open Android Files and manually find the exact recording.
+9. Play the exported file from Android Files.
+10. Tap Test Rename Actual File.
+11. Confirm the renamed file exists.
+12. Confirm the old file no longer exists if applicable.
+13. Play the renamed file from Android Files.
+14. Tap Prepare for NotebookLM.
+15. Try uploading the prepared file from NotebookLM.
+16. If Recents does not show the file, browse to Documents / Meeting Recall.
+17. Confirm whether NotebookLM accepts the prepared file.
+18. Confirm whether the filename is preserved.
 
 After Android validation, update this document with actual device results.
 

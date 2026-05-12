@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useMemo, useState } from "react";
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Linking, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import {
   getRecordingPermissionsAsync,
   RecordingPresets,
@@ -25,7 +25,7 @@ type FileCheckStatus = "not checked" | "exists" | "missing";
 const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
 const ANDROID_EXPORT_PARENT_FOLDER = "Documents";
 const DEFAULT_RECORDING_TITLE = "Test Recording";
-const TEST_RENAME_TITLE = "Renamed Test Recording";
+const SAF_FOLDER_STORE_FILE = "meeting-recall-saf-folder-uri.txt";
 
 function formatMillis(milliseconds: number) {
   const totalSeconds = Math.floor(milliseconds / 1000);
@@ -72,6 +72,36 @@ function getFileNameFromUri(uri: string | null) {
   return decodeURIComponent(lastSegment);
 }
 
+function describeStorageMethod(uri: string | null) {
+  if (!uri) {
+    return "none";
+  }
+
+  if (uri.startsWith("content://")) {
+    return "Storage Access Framework URI";
+  }
+
+  if (FileSystem.documentDirectory && uri.startsWith(FileSystem.documentDirectory)) {
+    return "app documentDirectory";
+  }
+
+  if (FileSystem.cacheDirectory && uri.startsWith(FileSystem.cacheDirectory)) {
+    return "app cacheDirectory";
+  }
+
+  if (uri.startsWith("file://")) {
+    return "file URI, location needs validation";
+  }
+
+  return "unknown";
+}
+
+function getStoredSafFolderFileUri() {
+  return FileSystem.documentDirectory
+    ? `${FileSystem.documentDirectory}${SAF_FOLDER_STORE_FILE}`
+    : null;
+}
+
 export function RecordingScreen({ navigation }: Props) {
   const [permissionStatus, setPermissionStatus] = useState("unknown");
   const [recordingStatus, setRecordingStatus] = useState<SpikeRecordingStatus>("idle");
@@ -79,8 +109,15 @@ export function RecordingScreen({ navigation }: Props) {
   const [exportedFileUri, setExportedFileUri] = useState<string | null>(null);
   const [preparedFileUri, setPreparedFileUri] = useState<string | null>(null);
   const [meetingRecallFolderUri, setMeetingRecallFolderUri] = useState<string | null>(null);
+  const [folderChoiceStatus, setFolderChoiceStatus] = useState("not selected");
+  const [folderPersistenceStatus, setFolderPersistenceStatus] = useState("not persisted");
   const [displayName, setDisplayName] = useState(DEFAULT_RECORDING_TITLE);
+  const [renameInput, setRenameInput] = useState("Renamed Test Recording");
   const [actualFileName, setActualFileName] = useState(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
+  const [renameOldFileName, setRenameOldFileName] = useState("none");
+  const [renameNewFileName, setRenameNewFileName] = useState("none");
+  const [renameOldFileUri, setRenameOldFileUri] = useState<string | null>(null);
+  const [renameNewFileUri, setRenameNewFileUri] = useState<string | null>(null);
   const [copyStatus, setCopyStatus] = useState("not copied");
   const [prepareStatus, setPrepareStatus] = useState("not prepared");
   const [renameStatus, setRenameStatus] = useState("not renamed");
@@ -110,6 +147,35 @@ export function RecordingScreen({ navigation }: Props) {
     }
 
     loadPermissionStatus();
+  }, []);
+
+  useEffect(() => {
+    async function loadStoredSafFolderUri() {
+      try {
+        const storedUriFile = getStoredSafFolderFileUri();
+
+        if (!storedUriFile) {
+          setFolderPersistenceStatus("app documentDirectory unavailable");
+          return;
+        }
+
+        const fileInfo = await FileSystem.getInfoAsync(storedUriFile);
+
+        if (!fileInfo.exists) {
+          setFolderPersistenceStatus("no stored SAF folder URI");
+          return;
+        }
+
+        const storedUri = await FileSystem.readAsStringAsync(storedUriFile);
+        setMeetingRecallFolderUri(storedUri);
+        setFolderChoiceStatus("loaded stored SAF folder URI");
+        setFolderPersistenceStatus("loaded from app documentDirectory");
+      } catch (error) {
+        setFolderPersistenceStatus(`load failed: ${getErrorMessage(error)}`);
+      }
+    }
+
+    loadStoredSafFolderUri();
   }, []);
 
   async function requestPermission() {
@@ -158,9 +224,13 @@ export function RecordingScreen({ navigation }: Props) {
       setSavedFileUri(null);
       setExportedFileUri(null);
       setPreparedFileUri(null);
-      setMeetingRecallFolderUri(null);
       setDisplayName(DEFAULT_RECORDING_TITLE);
+      setRenameInput("Renamed Test Recording");
       setActualFileName(buildRecordingFileName(DEFAULT_RECORDING_TITLE));
+      setRenameOldFileName("none");
+      setRenameNewFileName("none");
+      setRenameOldFileUri(null);
+      setRenameNewFileUri(null);
       setCopyStatus("not copied");
       setPrepareStatus("not prepared");
       setRenameStatus("not renamed");
@@ -306,6 +376,53 @@ export function RecordingScreen({ navigation }: Props) {
     }
   }
 
+  async function persistSafFolderUri(folderUri: string) {
+    try {
+      const storedUriFile = getStoredSafFolderFileUri();
+
+      if (!storedUriFile) {
+        setFolderPersistenceStatus("app documentDirectory unavailable");
+        return;
+      }
+
+      await FileSystem.writeAsStringAsync(storedUriFile, folderUri);
+      setFolderPersistenceStatus("stored SAF folder URI in app documentDirectory");
+    } catch (error) {
+      setFolderPersistenceStatus(`persist failed: ${getErrorMessage(error)}`);
+    }
+  }
+
+  async function chooseMeetingRecallFolder() {
+    try {
+      setLastError(null);
+      setFolderChoiceStatus("choosing visible SAF folder");
+
+      if (Platform.OS !== "android") {
+        setFolderChoiceStatus("unsupported");
+        setLastError("This folder selection spike is Android-first.");
+        return;
+      }
+
+      const initialFolderUri =
+        FileSystem.StorageAccessFramework.getUriForDirectoryInRoot(ANDROID_EXPORT_PARENT_FOLDER);
+      const permissions =
+        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(initialFolderUri);
+
+      if (!permissions.granted) {
+        setFolderChoiceStatus("permission denied");
+        setLastError("Folder access was not granted.");
+        return;
+      }
+
+      setMeetingRecallFolderUri(permissions.directoryUri);
+      setFolderChoiceStatus("selected SAF folder");
+      await persistSafFolderUri(permissions.directoryUri);
+    } catch (error) {
+      setFolderChoiceStatus("failed");
+      setLastError(`Unable to choose folder: ${getErrorMessage(error)}`);
+    }
+  }
+
   async function writeRecordingToSafFile(sourceUri: string, destinationUri: string) {
     const recordingBase64 = await FileSystem.readAsStringAsync(sourceUri, {
       encoding: FileSystem.EncodingType.Base64
@@ -348,7 +465,7 @@ export function RecordingScreen({ navigation }: Props) {
   async function copyToMeetingRecallFolder() {
     try {
       setLastError(null);
-      setCopyStatus(`choose ${ANDROID_EXPORT_PARENT_FOLDER}, not phone root`);
+      setCopyStatus("copying to selected SAF folder");
 
       if (Platform.OS !== "android") {
         setCopyStatus("unsupported");
@@ -369,18 +486,13 @@ export function RecordingScreen({ navigation }: Props) {
         return;
       }
 
-      const initialFolderUri =
-        FileSystem.StorageAccessFramework.getUriForDirectoryInRoot(ANDROID_EXPORT_PARENT_FOLDER);
-      const permissions =
-        await FileSystem.StorageAccessFramework.requestDirectoryPermissionsAsync(initialFolderUri);
-
-      if (!permissions.granted) {
-        setCopyStatus("permission denied");
-        setLastError("Folder access was not granted.");
+      if (!meetingRecallFolderUri) {
+        setCopyStatus("needs selected folder");
+        setLastError("Choose a visible Meeting Recall folder before copying.");
         return;
       }
 
-      const folderUri = await getOrCreateMeetingRecallFolder(permissions.directoryUri);
+      const folderUri = meetingRecallFolderUri;
       const destination = await createSafAudioFile(folderUri, currentFileName);
       await writeRecordingToSafFile(savedFileUri, destination.uri);
 
@@ -396,37 +508,51 @@ export function RecordingScreen({ navigation }: Props) {
     }
   }
 
-  async function renameExportedFileForSpike() {
+  async function renameFileForSpike() {
     try {
       setLastError(null);
       setRenameStatus("renaming");
       setOldRenamedFileCheck("not checked");
 
-      if (!meetingRecallFolderUri || !exportedFileUri) {
+      const fileToRename = exportedFileUri ?? preparedFileUri;
+
+      if (!meetingRecallFolderUri || !fileToRename) {
         setRenameStatus("failed");
         setLastError("Copy a recording to the Meeting Recall folder before testing rename.");
         return;
       }
 
-      const newDisplayName = sanitizeRecordingTitle(TEST_RENAME_TITLE);
+      if (!renameInput.trim()) {
+        setRenameStatus("failed");
+        setLastError("Enter a new recording name before testing rename.");
+        return;
+      }
+
+      const newDisplayName = sanitizeRecordingTitle(renameInput);
       const newFileName = buildRecordingFileName(newDisplayName);
+      const oldFileName = actualFileName;
+      const oldFileUri = fileToRename;
       const renamedFile = await createSafAudioFile(meetingRecallFolderUri, newFileName);
-      await writeRecordingToSafFile(exportedFileUri, renamedFile.uri);
-      await FileSystem.StorageAccessFramework.deleteAsync(exportedFileUri, { idempotent: true });
+      await writeRecordingToSafFile(fileToRename, renamedFile.uri);
+      await FileSystem.StorageAccessFramework.deleteAsync(fileToRename, { idempotent: true });
 
       const newExists = await FileSystem.getInfoAsync(renamedFile.uri);
-      const oldExists = await FileSystem.getInfoAsync(exportedFileUri);
+      const oldExists = await FileSystem.getInfoAsync(fileToRename);
 
       setDisplayName(newDisplayName);
       setActualFileName(renamedFile.fileName);
       setExportedFileUri(renamedFile.uri);
       setPreparedFileUri(null);
+      setRenameOldFileName(oldFileName);
+      setRenameNewFileName(renamedFile.fileName);
+      setRenameOldFileUri(oldFileUri);
+      setRenameNewFileUri(renamedFile.uri);
       setExportedFileCheck(newExists.exists ? "exists" : "missing");
       setOldRenamedFileCheck(oldExists.exists ? "exists" : "missing");
       setRenameStatus(newExists.exists && !oldExists.exists ? "renamed" : "needs review");
     } catch (error) {
       setRenameStatus("failed");
-      setLastError(`Unable to rename exported file: ${getErrorMessage(error)}`);
+      setLastError(`Unable to rename file: ${getErrorMessage(error)}`);
     }
   }
 
@@ -557,6 +683,7 @@ export function RecordingScreen({ navigation }: Props) {
   const canCopyFile = Boolean(savedFileUri);
   const canShareFile = Boolean(savedFileUri || exportedFileUri);
   const canPrepareFile = Boolean(savedFileUri || exportedFileUri);
+  const canRenameFile = Boolean(exportedFileUri || preparedFileUri);
 
   return (
     <Screen>
@@ -577,15 +704,19 @@ export function RecordingScreen({ navigation }: Props) {
         <SpikeButton disabled={!canPlay} label="Play saved recording" onPress={playRecording} primary />
         <SpikeButton disabled={!canStopPlayback} label="Stop playback" onPress={stopPlayback} />
         <SpikeButton
-          disabled={!canCopyFile}
-          label="Copy to Meeting Recall Folder"
-          onPress={copyToMeetingRecallFolder}
+          label="Choose Meeting Recall Folder"
+          onPress={chooseMeetingRecallFolder}
           primary
         />
         <SpikeButton
-          disabled={!exportedFileUri}
-          label="Test Rename Actual File"
-          onPress={renameExportedFileForSpike}
+          disabled={!canCopyFile}
+          label="Copy to Selected Folder"
+          onPress={copyToMeetingRecallFolder}
+        />
+        <SpikeButton
+          disabled={!canRenameFile}
+          label="Test Rename File"
+          onPress={renameFileForSpike}
         />
         <SpikeButton
           disabled={!canPrepareFile}
@@ -610,6 +741,19 @@ export function RecordingScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.panel}>
+        <Text style={styles.panelTitle}>Rename test</Text>
+        <TextInput
+          autoCapitalize="words"
+          onChangeText={setRenameInput}
+          placeholder="New recording name"
+          placeholderTextColor={theme.colors.textSubtle}
+          style={styles.input}
+          value={renameInput}
+        />
+        <DebugRow label="Sanitized rename filename" value={buildRecordingFileName(renameInput)} />
+      </View>
+
+      <View style={styles.panel}>
         <Text style={styles.panelTitle}>Debug status</Text>
         <DebugRow label="Permission" value={permissionStatus} />
         <DebugRow label="Recording status" value={recordingStatus} />
@@ -617,17 +761,30 @@ export function RecordingScreen({ navigation }: Props) {
         <DebugRow label="Recorder active" value={String(recorderState.isRecording)} />
         <DebugRow label="Recording duration" value={formatMillis(recorderState.durationMillis)} />
         <DebugRow label="Recorder URL" value={recorderState.url ?? "none"} />
+        <DebugRow label="Original storage method" value={describeStorageMethod(savedFileUri)} />
+        <DebugRow label="App documentDirectory" value={FileSystem.documentDirectory ?? "none"} />
+        <DebugRow label="App cacheDirectory" value={FileSystem.cacheDirectory ?? "none"} />
         <DebugRow label="Original recording URI" value={savedFileUri ?? "none"} />
-        <DebugRow label="Permanent Meeting Recall folder URI" value={meetingRecallFolderUri ?? "none"} />
+        <DebugRow label="Selected SAF folder URI" value={meetingRecallFolderUri ?? "none"} />
+        <DebugRow label="Selected folder storage method" value={describeStorageMethod(meetingRecallFolderUri)} />
+        <DebugRow label="Folder choice status" value={folderChoiceStatus} />
+        <DebugRow label="Folder persistence status" value={folderPersistenceStatus} />
+        <DebugRow label="SAF used" value={String(Boolean(meetingRecallFolderUri?.startsWith("content://")))} />
         <DebugRow label="Current display name" value={displayName} />
         <DebugRow label="Actual file name" value={actualFileName} />
         <DebugRow label="Exported/copied file URI" value={exportedFileUri ?? "none"} />
+        <DebugRow label="Exported storage method" value={describeStorageMethod(exportedFileUri)} />
         <DebugRow label="Prepared NotebookLM file URI" value={preparedFileUri ?? "none"} />
+        <DebugRow label="Prepared storage method" value={describeStorageMethod(preparedFileUri)} />
         <DebugRow label="URI file name fallback" value={getFileNameFromUri(preparedFileUri ?? exportedFileUri)} />
         <DebugRow label="Original file exists" value={originalFileCheck} />
         <DebugRow label="Current exported/renamed file exists" value={exportedFileCheck} />
         <DebugRow label="Prepared NotebookLM file exists" value={preparedFileCheck} />
         <DebugRow label="Old renamed file exists" value={oldRenamedFileCheck} />
+        <DebugRow label="Rename old filename" value={renameOldFileName} />
+        <DebugRow label="Rename new filename" value={renameNewFileName} />
+        <DebugRow label="Rename old URI" value={renameOldFileUri ?? "none"} />
+        <DebugRow label="Rename new URI" value={renameNewFileUri ?? "none"} />
         <DebugRow label="Copy/export status" value={copyStatus} />
         <DebugRow label="Prepare status" value={prepareStatus} />
         <DebugRow label="Rename status" value={renameStatus} />
@@ -754,6 +911,16 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.label.fontSize,
     fontWeight: theme.typography.label.fontWeight,
     marginBottom: theme.spacing.sm
+  },
+  input: {
+    borderColor: theme.colors.divider,
+    borderRadius: theme.radii.md,
+    borderWidth: StyleSheet.hairlineWidth,
+    color: theme.colors.text,
+    fontSize: theme.typography.body.fontSize,
+    marginBottom: theme.spacing.sm,
+    minHeight: 52,
+    paddingHorizontal: theme.spacing.md
   },
   debugRow: {
     borderTopColor: theme.colors.divider,
