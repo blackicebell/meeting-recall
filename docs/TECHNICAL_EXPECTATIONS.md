@@ -281,6 +281,32 @@ Calendar integration exists to:
 
 ---
 
+# Google Sign-In Setup
+
+The production Calendar integration is prepared to use:
+
+@react-native-google-signin/google-signin
+
+Current app identifiers:
+
+- Android package: com.meetingrecall.app
+- iOS bundle ID: com.meetingrecall.app
+
+Because Google Sign-In uses native code, any dependency or config-plugin change requires a new Expo development build before testing.
+
+Google Cloud Console setup is still required:
+
+- Enable Google Calendar API
+- Configure OAuth consent screen
+- Create Android OAuth client
+- Create iOS OAuth client
+- Add the development-build SHA-1 fingerprint for Android
+- Replace placeholder OAuth values in app config/constants
+
+Do not hardcode private secrets in the app.
+
+---
+
 # Required Behaviors
 
 - Google authentication support

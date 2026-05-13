@@ -231,6 +231,9 @@ If analytics are added:
 
 ## Verify
 - Bundle ID finalized
+- iOS bundle ID is com.meetingrecall.app
+- iOS Google OAuth client created
+- Google Sign-In iOS URL scheme configured from Google Cloud Console
 - App name finalized
 - Screenshots uploaded
 - Description uploaded
@@ -258,6 +261,12 @@ If analytics are added:
 
 ## Verify
 - Package name finalized
+- Android package name is com.meetingrecall.app
+- Android Google OAuth client created
+- Google Calendar API enabled in Google Cloud Console
+- OAuth consent screen configured
+- Required Android SHA-1 fingerprints added for development, testing, and production signing
+- New development build created after adding Google Sign-In native dependency/config
 - Screenshots uploaded
 - Feature graphic prepared
 - Data Safety form completed
