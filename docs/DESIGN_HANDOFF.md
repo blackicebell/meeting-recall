@@ -154,8 +154,13 @@ Provide fast access to:
 ## Rules
 - Keep layout breathable
 - Recording CTA easy to locate
+- Use a blue primary record button near the lower screen area
+- Keep the record CTA thumb-friendly and clear
 - Recent recordings scannable
 - Use dividers over heavy cards
+- Keep Recent Recordings visible above the floating record CTA
+- Do not use gradients on the record CTA
+- Reserve the red circular microphone/stop control for the actual Recording screen
 
 ---
 
@@ -200,6 +205,14 @@ Waveform should:
 - animate smoothly
 - remain minimal
 - avoid excessive visual complexity
+- feel alive during active recording
+- use microphone metering/amplitude input when available
+- fall back to subtle simulated variance if true amplitude is unavailable
+- use center-weighted vertical bars
+- show soft breathing motion during silence
+- move more during speech without feeling chaotic
+- avoid perfect loops, equal bar movement, bright gradients, or music visualizer styling
+- prioritize smooth interpolation and mobile performance
 
 ---
 
@@ -215,6 +228,14 @@ Help user finalize recording quickly.
 - Minimal text
 - Clear save action
 - Date-first naming visible
+- Avoid explanatory paragraphs
+- Use filename and location affordances instead:
+  - final filename preview
+  - "Saves to Meeting Recall folder"
+- Reduce excessive vertical whitespace
+- Keep the layout compact, calm, and visually balanced
+- Group title, filename, location, duration, and actions clearly
+- Keep Save Recording and Cancel visible without scrolling
 
 ---
 
@@ -231,6 +252,36 @@ Provide playback and NotebookLM handoff.
 - waveform scrubber
 - playback controls
 - Open NotebookLM CTA
+- Share action
+- direct trash-icon Delete access
+- compact "Ready for NotebookLM" status chip
+- exact filename
+- Documents -> Meeting Recall location
+
+These core actions should fit above the fold on a normal phone screen.
+
+If space is tight:
+- reduce helper copy first
+- shorten metadata blocks
+- reduce waveform height
+- keep primary and secondary actions visible
+
+Recording title should be the hero.
+Avoid large redundant status headers such as:
+- Ready
+- Your recording is ready
+
+NotebookLM guidance should be one short helper line on Recording Detail, not a numbered stepper.
+
+Use:
+When NotebookLM opens, tap Add Source and choose this file.
+
+The Open NotebookLM button should open NotebookLM immediately after file validation passes.
+Do not show a confirmation bottom sheet or compact modal in the normal flow.
+Do not duplicate Recording Detail as a separate full-screen Recording Ready or NotebookLM helper screen.
+
+Save location should stay fixed and predictable for MVP:
+Documents -> Meeting Recall
 
 ---
 
@@ -239,6 +290,8 @@ Provide playback and NotebookLM handoff.
 ## Primary
 Open NotebookLM
 
+This should remain the dominant full-width CTA.
+
 ---
 
 ## Secondary
@@ -246,11 +299,22 @@ Open NotebookLM
 - Rename
 - Delete
 
-Secondary actions must not visually compete with the primary CTA.
+Share must remain visible near Open NotebookLM.
+
+Delete should use a visible, quiet Fluent-style trash icon when it is the only overflow-style action.
+Do not show a More menu unless there are multiple actions inside it.
+The trash icon should open delete confirmation directly.
+Destructive visual treatment should remain subtle until confirmation.
+The delete icon should use clean outline geometry, a subtle red tint, and a comfortable touch target.
+It should feel intentional without competing with Open NotebookLM, playback, or recording actions.
+
+Back should use a clear chevron-style icon in the top-left and feel native.
+
+Playback controls should use clear play/stop or play/pause icon states, stay centered, and maintain at least 44px touch targets.
 
 ---
 
-# 6. NotebookLM Helper Screen
+# 6. NotebookLM Direct Handoff
 
 ## Goal
 Reduce friction before NotebookLM upload.
@@ -258,17 +322,19 @@ Reduce friction before NotebookLM upload.
 ---
 
 ## Rules
-- Extremely short instructions
+- One short helper line on Recording Detail
 - Calm tone
 - Minimal visual complexity
 - Clear next step
+- Open NotebookLM directly after file validation
+- No confirmation modal for the normal flow
+- Modals or alerts are reserved for errors and fallback states
+- Avoid repeated workflow explanation
 
 ---
 
-## Required Instructions
-1. Open NotebookLM
-2. Tap Add Source
-3. Upload your recording
+## Required Helper Copy
+When NotebookLM opens, tap Add Source and choose this file.
 
 ---
 
@@ -375,6 +441,33 @@ Used for:
 
 ## Recording Red
 Use ONLY during active recording states.
+
+Allowed recording-red uses:
+- active recording indicator
+- active recording controls
+- floating Home record CTA
+- circular red microphone/stop controls on the Recording screen
+- destructive icon/confirmation when needed
+
+Do not use red for general navigation, the Home record CTA, or NotebookLM actions.
+Blue remains reserved for NotebookLM, main navigation CTAs, and the Home record button.
+
+---
+
+# Icon Direction
+
+Preferred icon style:
+- Microsoft Fluent where available
+- Google Material style when Fluent is not available
+
+Use recognizable icons for:
+- Settings gear
+- Fluent-style trash/delete
+- back chevron
+- play/stop or play/pause
+
+Icons should be centered, balanced, and at least 44px touch targets.
+Destructive icons should stay calm and visually lighter than primary CTAs.
 
 ---
 

@@ -74,11 +74,11 @@ Tap “Open NotebookLM”
 
 ↓
 
-Helper / Instruction Screen
+Validate recording file
 
 ↓
 
-Open NotebookLM
+Open NotebookLM immediately
 
 ↓
 
@@ -92,10 +92,15 @@ User uploads recording
 
 “Open NotebookLM” is the primary CTA on the Recording Detail screen.
 
+Recording Detail is the single source of truth after save.
+Do not create a separate full-screen Recording Ready or NotebookLM helper screen that repeats the same title, filename, location, playback, and CTA content.
+Do not show a confirmation bottom sheet or modal during the normal Open NotebookLM flow.
+
 It should:
 - Be visually dominant
 - Be easier to access than Share
 - Clearly communicate the next step
+- Open NotebookLM immediately after file validation succeeds
 
 ---
 
@@ -190,8 +195,7 @@ The app should:
 1. Ensure recording exists
 2. Ensure recording is accessible
 3. Prepare file for sharing/file picker visibility
-4. Open helper screen
-5. Open NotebookLM app or browser
+4. Open NotebookLM app or browser immediately
 
 Before this flow, the saved recording should already exist as a final public file in Documents / Meeting Recall with the expected filename:
 YYYY-MM-DD – Meeting Name.m4a
@@ -200,39 +204,41 @@ The normal save flow should create this file after the user confirms the title, 
 
 ---
 
-# NotebookLM Helper Screen
+# NotebookLM Direct Handoff
 
 ## Purpose
 
-Reduce user hesitation and confusion before entering NotebookLM.
+Reduce friction before entering NotebookLM.
 
 ---
 
-# Helper Copy
+# Current Production Behavior
 
-## Headline
-Your recording is ready
+When the user taps Open NotebookLM from Recording Detail:
+- verify the recording file exists
+- verify file size is greater than 0 when available
+- open NotebookLM immediately when validation passes
+- do not open NotebookLM if the file is missing
+- do not show a confirmation modal during the normal flow
 
-## Body
-“We saved your recording to the Meeting Recall folder so it’s easy to find when uploading to NotebookLM.”
+If the file is missing, display:
+Recording file could not be found.
 
----
-
-# Instructions
-
-1. Open NotebookLM
-2. Tap Add Source
-3. Upload your recording
+If the file is empty, display:
+Recording file is not ready yet.
 
 ---
 
 # UX Goals
 
-The helper screen should:
-- Reduce cognitive load
-- Explain only what is necessary
-- Avoid technical wording
-- Keep instructions extremely short
+The direct handoff should:
+- feel fast and confident
+- avoid non-destructive confirmation steps
+- avoid repeated workflow explanation
+- rely on Recording Detail as the instructional source of truth
+
+Recording Detail may show one short helper line:
+When NotebookLM opens, tap Add Source and choose this file.
 
 ---
 

@@ -80,15 +80,61 @@ Unexpected external interruption or partial failure.
 # 2. Onboarding Screen
 
 ## Default
-- Clear onboarding copy
+- Three onboarding screens
+- Screen 1:
+Record meetings. Recall everything.
+- Screen 2:
+Use NotebookLM for insights
+- Screen 3:
+Your recordings stay with you
 - CTA visible
+- Skip visible
 - Smooth progression
+
+---
+
+## Microphone Explainer
+- appears after onboarding screens
+- title:
+Enable microphone access
+- body:
+Meeting Recall needs microphone access to record your meetings.
+- CTA:
+Allow Microphone Access
+
+---
+
+## Microphone Denied
+- title:
+Microphone access is off.
+- body:
+Turn it on in Settings to record meetings.
+- CTA:
+Open Settings
+
+---
+
+## Folder Setup
+- appears after microphone permission is granted
+- title:
+Choose where recordings are saved
+- body recommends Documents / Meeting Recall
+- CTA:
+Choose Folder
+- if folder is already stored, show folder ready state and Continue CTA
+
+---
+
+## Success
+- onboarding completion persists locally after setup
+- returning users go directly to Home
 
 ---
 
 ## Interrupted
 - App closed during onboarding
 - Partial onboarding completion
+- Returning before setup completion resumes setup instead of going Home
 
 ---
 
@@ -278,6 +324,21 @@ Display:
 - playback available
 - metadata visible
 - NotebookLM CTA visible
+- compact status chip visible:
+Ready for NotebookLM
+- recording title is the visual hero
+- exact filename visible
+- save location visible:
+Documents -> Meeting Recall
+- NotebookLM handoff opens NotebookLM directly after file validation
+- Recording Detail provides the helper guidance:
+When NotebookLM opens, tap Add Source and choose this file.
+- Share visible near NotebookLM CTA
+- top-left Back uses a clear chevron-style icon
+- top-right Delete uses a quiet trash icon with accessible label:
+Delete recording
+- no More menu should appear unless it contains multiple actions
+- playback controls use clear icon states and at least 44px touch targets
 
 ---
 
@@ -313,6 +374,14 @@ Display:
 
 ---
 
+## Share Missing File
+Display:
+Recording file could not be found.
+
+Native share sheet should not open.
+
+---
+
 # Success States
 
 ## Playback Active
@@ -322,6 +391,11 @@ Playback state visually obvious.
 
 ## NotebookLM Ready
 Recording clearly upload-ready.
+
+---
+
+## Share Ready
+Native OS share sheet opens after file existence and file size validation pass.
 
 ---
 
@@ -365,6 +439,13 @@ Filename updates:
 # Default State
 - calm confirmation
 - avoid aggressive visuals
+- title:
+Delete recording?
+- body:
+This removes the recording from Meeting Recall. If possible, the audio file will also be deleted from your device.
+- buttons:
+Delete Recording
+Cancel
 
 ---
 
@@ -374,6 +455,17 @@ Filename updates:
 Display:
 “Unable to delete recording.”
 
+## File Delete Failure
+Display:
+Recording removed from the app, but the file may still remain in your Meeting Recall folder.
+
+Metadata should be removed when the user has confirmed deletion and the app record can be cleaned up safely.
+
+## File Already Missing
+Display a calm cleanup confirmation.
+
+Metadata cleanup should still be allowed.
+
 ---
 
 # Success States
@@ -381,16 +473,19 @@ Display:
 ## Delete Successful
 Recording removed:
 - from UI
-- from storage if intended
+- from Recent Recordings
+- from storage if platform file deletion succeeds
 
 ---
 
-# 9. NotebookLM Helper Screen
+# 9. NotebookLM Direct Handoff
 
 # Default State
-- short instructions
-- filename visible
-- Open NotebookLM CTA visible
+- starts when user taps Open NotebookLM from Recording Detail
+- validates the recording file exists
+- validates file size is greater than 0 when possible
+- opens NotebookLM app or browser immediately after validation succeeds
+- does not show a confirmation modal in the normal flow
 
 ---
 
@@ -403,6 +498,20 @@ Fallback to browser if possible.
 
 ## File Missing
 Prevent NotebookLM flow if recording missing.
+
+---
+
+## File Empty
+Display:
+Recording file is not ready yet.
+
+Prevent NotebookLM flow.
+
+---
+
+## Browser Fallback
+Display:
+Opening NotebookLM in your browser.
 
 ---
 

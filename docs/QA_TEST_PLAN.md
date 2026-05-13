@@ -28,6 +28,27 @@ A successful test means:
 
 ---
 
+# Current MVP Refactor Status
+
+The spike phase has been completed enough to start production implementation.
+
+QA should now focus first on the production recording flow:
+
+Record → Stop → Save Recording → Verify file → Playback → Open NotebookLM
+
+Rename for already-saved recordings is deferred unless a safe native file operation is validated later.
+
+The correct filename should be created during initial Save Recording.
+
+Recent Recordings flow is now testable:
+
+- saved recording metadata persists locally
+- saved recordings appear on Home
+- tapping an old recording opens Recording Detail
+- playback should work from the old recording detail screen
+
+---
+
 # Priority Testing Order
 
 1. Recording reliability
@@ -60,16 +81,39 @@ A successful test means:
 ## Steps
 1. Install app
 2. Open app
-3. View splash screen
-4. Complete onboarding
-5. Accept or deny permissions
+3. View onboarding screen 1
+4. Tap Continue through all three onboarding screens
+5. Review microphone explainer
+6. Accept microphone permission
+7. Choose or confirm Meeting Recall folder
 
 ## Expected Result
 - App opens without crash
-- Onboarding is readable
+- Onboarding has three readable screens
+- Screen 1 says:
+Record meetings. Recall everything.
+- Screen 2 explains NotebookLM upload workflow
+- Screen 3 explains local Meeting Recall folder storage
 - Buttons are visible
 - Permission copy is clear
+- Folder setup recommends Documents / Meeting Recall
 - User lands on Home screen
+- On next app launch, user goes directly to Home
+
+---
+
+# 1A. Onboarding Skip Test
+
+## Steps
+1. Install app fresh
+2. Open app
+3. Tap Skip during onboarding
+
+## Expected Result
+- App skips the education screens
+- App still shows microphone setup
+- App still guides user to folder setup
+- App does not mark setup complete until setup is finished
 
 ---
 
@@ -77,12 +121,15 @@ A successful test means:
 
 ## Steps
 1. Open app fresh
-2. Attempt to record
-3. Grant microphone permission
+2. Complete or skip onboarding screens
+3. Review microphone explainer
+4. Tap Allow Microphone Access
+5. Grant microphone permission
 
 ## Expected Result
+- Explainer appears before OS prompt
 - Permission prompt appears
-- Recording starts after permission granted
+- Folder setup appears after permission granted
 - No crash or confusing state
 
 ---
@@ -90,13 +137,37 @@ A successful test means:
 # 3. Microphone Denied Test
 
 ## Steps
-1. Deny microphone permission
-2. Try to record
+1. Open app fresh
+2. Complete or skip onboarding screens
+3. Tap Allow Microphone Access
+4. Deny microphone permission
 
 ## Expected Result
-- User sees clear explanation
+- User sees:
+Microphone access is off.
+- User sees:
+Turn it on in Settings to record meetings.
+- Open Settings CTA appears
 - App does not crash
 - User knows how to re-enable permission
+
+---
+
+# 3A. Folder Setup Test
+
+## Steps
+1. Complete onboarding
+2. Grant microphone permission
+3. Tap Choose Folder
+4. Select Documents / Meeting Recall or create/select an equivalent visible folder
+5. Continue to Home
+6. Close and reopen app
+
+## Expected Result
+- Folder picker appears
+- Selected folder permission is persisted where supported
+- User lands on Home after folder setup
+- Returning user goes directly to Home
 
 ---
 
@@ -111,7 +182,8 @@ A successful test means:
 
 ## Expected Result
 - Timer works
-- Waveform animates
+- Waveform animates subtly and feels alive during active recording
+- Waveform motion is not distracting
 - Pause works
 - Resume works
 - Stop opens Save bottom sheet
@@ -212,6 +284,9 @@ A successful test means:
 ## Expected Result
 - Default name follows:
 YYYY-MM-DD – Meeting Name.m4a
+- Save screen uses filename/location affordances instead of a long explanatory paragraph
+- Final filename is clearly visible
+- "Saves to Meeting Recall folder" is visible as a small location row or metadata chip
 - App creates the final public file only after Save Recording is confirmed
 - Final file is created in Documents / Meeting Recall
 - Final file exists
@@ -300,15 +375,17 @@ YYYY-MM-DD – Meeting Name.m4a
 1. Record meeting
 2. Save
 3. Tap Open NotebookLM
-4. Confirm the app prepares the file first
-5. Follow helper screen
+4. Confirm the app verifies the file exists
+5. Confirm NotebookLM opens immediately without a confirmation modal
 6. Upload file in NotebookLM
 
 ## Expected Result
 - NotebookLM opens
 - User understands what to do
-- Helper shows exact filename
-- Helper tells user to look in Documents / Meeting Recall if Recents does not show the file
+- Recording Detail shows exact filename
+- Recording Detail uses short guidance:
+When NotebookLM opens, tap Add Source and choose this file.
+- Recording Detail tells user the file is in Documents / Meeting Recall
 - Recording is easy to find by browsing to Documents / Meeting Recall
 - Upload works
 
@@ -322,15 +399,34 @@ YYYY-MM-DD – Meeting Name.m4a
 3. Return later
 4. Open old recording
 5. Tap Open NotebookLM
-6. Confirm the app prepares the file first
-7. Upload file in NotebookLM
+6. Confirm the app verifies the file exists
+7. Confirm NotebookLM opens immediately without a confirmation modal
+8. Upload file in NotebookLM
 
 ## Expected Result
 - Old recording is just as easy to use
 - File is accessible
 - File name is recognizable
-- Helper shows exact filename and Documents / Meeting Recall fallback
+- Recording Detail shows exact filename and Documents / Meeting Recall fallback
 - User does not need to search extensively if Recents fails
+
+---
+
+# 13B. NotebookLM Missing File Block Test
+
+## Steps
+1. Save a recording
+2. Delete the audio file from device storage if possible
+3. Return to the app
+4. Open the recording detail screen
+5. Tap Open NotebookLM
+
+## Expected Result
+- App does not open NotebookLM
+- Message appears:
+Recording file could not be found.
+- User remains in the app
+- App does not crash
 
 ---
 
@@ -357,12 +453,70 @@ YYYY-MM-DD – Meeting Name.m4a
 ## Steps
 1. Open recording detail
 2. Tap Share
-3. Share to email or Drive
+3. Confirm native OS share sheet opens
+4. Share to email, messaging app, Google Drive, or another file-sharing target
+5. Confirm the shared attachment uses the .m4a extension
+6. Confirm the shared content type is treated as audio/mp4 when visible
 
 ## Expected Result
 - Native share sheet opens
 - Correct file attaches
 - File name is preserved
+- .m4a extension is preserved
+- File size is greater than 0
+- Common share targets do not report unsupported content type
+- Open NotebookLM remains the primary visible action
+- Share remains a secondary visible action
+
+---
+
+# 14C. Share Content Type Test
+
+## Steps
+1. Save a short recording
+2. Open recording detail
+3. Tap Share
+4. Share to email
+5. Share to Google Drive
+6. Share to laptop/nearby share if available
+7. Share to a messaging app if available
+
+## Expected Result
+- Shared file keeps the expected YYYY-MM-DD - Meeting Name.m4a filename
+- Shared MIME/content type is audio/mp4 where the target exposes it
+- The receiving app/device can recognize the file as audio
+- Unsupported content type errors do not occur on common share targets
+
+---
+
+# 14A. Share Missing File Test
+
+## Steps
+1. Save a recording
+2. Delete the audio file from device storage if possible
+3. Return to Meeting Recall
+4. Open the old recording detail
+5. Tap Share
+
+## Expected Result
+- Native share sheet does not open
+- Message appears:
+Recording file could not be found.
+- App does not crash
+
+---
+
+# 14B. Share Failure Test
+
+## Steps
+1. Open recording detail
+2. Tap Share
+3. Simulate or observe native share failure if possible
+
+## Expected Result
+- Message appears:
+Unable to share recording.
+- User remains on Recording Detail
 
 ---
 
@@ -413,14 +567,98 @@ YYYY-MM-DD – Meeting Name.m4a
 
 ## Steps
 1. Open recording detail
-2. Tap Delete
-3. Confirm deletion
+2. Confirm Open NotebookLM, Share, playback controls, and trash-icon delete access are visible without scrolling
+3. Tap the trash icon
+4. Confirm the dialog says:
+Delete recording?
+5. Confirm the body says:
+This removes the recording from Meeting Recall. If possible, the audio file will also be deleted from your device.
+6. Tap Cancel
+7. Confirm the recording remains
+8. Tap the trash icon again
+9. Tap Delete Recording in the confirmation
 
 ## Expected Result
+- Delete is available through a quiet top-right trash icon
+- No More menu appears when Delete is the only item
 - Confirmation appears
 - Recording removed from app
-- File removed from device if intended
+- App attempts to remove the audio file from device storage
 - Recent Recordings updates
+- User returns to Home
+
+---
+
+# 18C. Recording Detail Above-Fold Test
+
+## Steps
+1. Open a saved recording detail screen
+2. Check the first visible screen without scrolling
+
+## Expected Result
+- Compact "Ready for NotebookLM" status chip is visible
+- Recording title is the hero
+- Duration/metadata is visible
+- Playback controls are visible
+- Waveform/progress area is visible if present
+- Open NotebookLM is visible as the primary full-width CTA
+- Share is visible near Open NotebookLM
+- Exact filename is visible
+- Save location remains Documents / Meeting Recall
+- NotebookLM guidance appears as one short line on Recording Detail
+- Open NotebookLM opens directly after file validation without a confirmation modal
+- Trash-icon delete access is visible
+- Delete is not visually dominant on the main screen
+- Back uses a clear top-left chevron-style icon
+- Playback controls use clear play and stop/pause icon states with at least 44px touch targets
+
+---
+
+# 18D. Small Device Recording Detail Test
+
+## Steps
+1. Open a saved recording detail screen on a small Android device or narrow emulator
+2. Check whether core actions remain visible without scrolling
+
+## Expected Result
+- Open NotebookLM remains visible
+- Share remains visible
+- Trash-icon delete access remains visible
+- Only non-core helper text may be lost or require scrolling
+
+---
+
+# 18A. Delete File Failure Test
+
+## Steps
+1. Open recording detail
+2. Tap the trash icon
+3. Confirm deletion
+4. Simulate or observe a failed device file deletion if possible
+
+## Expected Result
+- Recording metadata is removed from Meeting Recall
+- Recording disappears from Recent Recordings
+- User sees:
+Recording removed from the app, but the file may still remain in your Meeting Recall folder.
+
+---
+
+# 18B. Delete Missing File Cleanup Test
+
+## Steps
+1. Save a recording
+2. Delete the audio file from Android Files if possible
+3. Return to Meeting Recall
+4. Open the old recording detail
+5. Tap the trash icon
+6. Confirm deletion
+
+## Expected Result
+- Metadata cleanup still works
+- Recording disappears from Recent Recordings
+- App explains the audio file was already missing
+- App does not crash
 
 ---
 
@@ -454,6 +692,28 @@ YYYY-MM-DD – Meeting Name.m4a
 
 ---
 
+# 20A. Recent Recordings Persistence Test
+
+## Steps
+1. Record a short test recording
+2. Save it
+3. Return Home
+4. Confirm it appears under Recent Recordings
+5. Close and reopen app
+6. Return Home
+7. Tap the saved recording
+8. Play it from Recording Detail
+
+## Expected Result
+- Recording appears on Home after save
+- Recording remains listed after app restart
+- Tapping the row opens Recording Detail
+- Actual filename is visible
+- Folder location is visible
+- Playback works
+
+---
+
 # 21. Visual QA Test
 
 ## Check
@@ -464,6 +724,15 @@ YYYY-MM-DD – Meeting Name.m4a
 - CTA hierarchy
 - Empty states
 - Error states
+- Settings uses a clear gear icon
+- Delete uses a direct trash icon with one confirmation
+- Playback controls use clear, centered icons
+- Preferred icon direction remains Microsoft Fluent where available, otherwise Google Material style
+- Save Recording avoids wordy helper copy
+- Active recording waveform animation is smooth and premium
+- Recording Detail uses compact status chip instead of large redundant ready headings
+- NotebookLM handoff opens directly, with modals or alerts reserved for errors and fallback states
+- Exact filename remains visible before opening NotebookLM
 
 ## Expected Result
 - App feels calm and premium

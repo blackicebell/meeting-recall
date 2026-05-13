@@ -1,17 +1,61 @@
-import { Pressable, StyleSheet, Text } from "react-native";
+import { Image, Pressable, StyleSheet, Text } from "react-native";
 
 import { theme } from "../../constants/theme";
 
+const FLUENT_DELETE_ICON_URI =
+  "https://cdn.creazilla.com/icons/3181325/ic-fluent-delete-20-regular-icon-md.png";
+const FLUENT_SETTINGS_ICON_URI =
+  "https://cdn.creazilla.com/icons/3183538/ic-fluent-settings-16-regular-icon-md.png";
+
 type IconButtonProps = {
   label: string;
-  symbol: string;
   onPress: () => void;
-};
+  tone?: "default" | "destructive" | "muted";
+} & (
+  | {
+      icon?: never;
+      symbol: string;
+    }
+  | {
+      icon: "delete";
+      symbol?: never;
+    }
+  | {
+      icon: "settings";
+      symbol?: never;
+    }
+);
 
-export function IconButton({ label, symbol, onPress }: IconButtonProps) {
+function getToneColor(tone: NonNullable<IconButtonProps["tone"]>) {
+  if (tone === "destructive") {
+    return theme.colors.recording;
+  }
+
+  if (tone === "muted") {
+    return theme.colors.textMuted;
+  }
+
+  return theme.colors.text;
+}
+
+export function IconButton({ icon, label, onPress, symbol, tone = "default" }: IconButtonProps) {
+  const iconColor = getToneColor(tone);
+
   return (
     <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={styles.button}>
-      <Text style={styles.symbol}>{symbol}</Text>
+      {icon === "delete" ? (
+        <Image
+          source={{ uri: FLUENT_DELETE_ICON_URI }}
+          style={[styles.iconImage, { tintColor: iconColor }]}
+        />
+      ) : icon === "settings" ? (
+        <Image
+          source={{ uri: FLUENT_SETTINGS_ICON_URI }}
+          style={[styles.iconImage, { tintColor: iconColor }]}
+        />
+      ) : (
+        <Text style={[styles.symbol, { color: iconColor }]}>{symbol}</Text>
+      )}
     </Pressable>
   );
 }
@@ -25,7 +69,14 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.pill
   },
   symbol: {
-    color: theme.colors.text,
-    fontSize: 24
+    fontSize: 24,
+    includeFontPadding: false,
+    lineHeight: 28,
+    textAlign: "center"
+  },
+  iconImage: {
+    height: 24,
+    resizeMode: "contain",
+    width: 24
   }
 });

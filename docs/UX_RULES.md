@@ -30,6 +30,37 @@ Because of this:
 - “Open NotebookLM” should be the primary CTA on recording detail screens.
 - Share should be secondary.
 - The app should always guide the user toward making the recording easy to upload.
+- Recording Detail should provide the needed filename, location, and short upload guidance.
+- Open NotebookLM should open directly after file validation.
+- Do not add confirmation modals for this non-destructive action.
+- Reserve modals or alerts for errors, fallback states, and destructive actions.
+
+---
+
+# 2A. Onboarding And Setup
+
+First-run onboarding should quickly explain:
+- Meeting Recall records meetings
+- NotebookLM provides insights after upload
+- Recordings save locally
+- Files live in the Meeting Recall folder
+
+Onboarding should use short, confident copy.
+Avoid tutorials, long paragraphs, and technical explanations.
+
+Microphone permission should always have a calm explainer before the OS prompt.
+
+Use:
+Meeting Recall needs microphone access to record your meetings.
+
+If permission is denied, recovery should be clear:
+Microphone access is off.
+Turn it on in Settings to record meetings.
+
+Folder setup should explain the practical benefit:
+Documents / Meeting Recall makes files easier to find when uploading to NotebookLM.
+
+Onboarding completion should persist locally so returning users go directly to Home.
 
 ---
 
@@ -112,9 +143,15 @@ Meeting Recall should feel:
 Design direction:
 - Light-only for MVP
 - Primary blue: #4b7de6
-- Red only for active recording states
+- Red for active recording states and recording-screen controls
 - Dividers over cards
 - Gradient only for the most important CTA
+
+Recording color hierarchy:
+- Red should make recording feel immediate, tactile, and important.
+- Use red for active recording indicators, the circular microphone/stop control on the Recording screen, and destructive confirmation states.
+- Do not use red for general navigation, the Home record CTA, or NotebookLM actions.
+- Blue remains reserved for Open NotebookLM, main navigation CTAs, and the Home record button.
 
 ---
 
@@ -132,6 +169,12 @@ Rules:
 - Only one dominant CTA per screen.
 - Secondary actions should not visually compete with the primary action.
 - Destructive actions like Delete should be visually quiet until selected.
+- The Home record CTA should be a blue primary button near thumb reach.
+- The actual Recording screen should use a red circular microphone/stop control.
+- Save Recording should feel compact and balanced, with clear filename/location affordances instead of paragraphs.
+
+Preferred recording limitation copy:
+Keep Meeting Recall open during recording.
 
 ---
 

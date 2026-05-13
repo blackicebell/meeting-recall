@@ -3,7 +3,6 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { StatusBar } from "expo-status-bar";
 
 import { HomeScreen } from "./app/screens/HomeScreen";
-import { NotebookLMHelperScreen } from "./app/screens/NotebookLMHelperScreen";
 import { OnboardingScreen } from "./app/screens/OnboardingScreen";
 import { RecordingDetailScreen } from "./app/screens/RecordingDetailScreen";
 import { RecordingScreen } from "./app/screens/RecordingScreen";
@@ -30,7 +29,6 @@ export default function App() {
         <Stack.Screen name="Recording" component={RecordingScreen} />
         <Stack.Screen name="SaveRecording" component={SaveRecordingScreen} />
         <Stack.Screen name="RecordingDetail" component={RecordingDetailScreen} />
-        <Stack.Screen name="NotebookLMHelper" component={NotebookLMHelperScreen} />
         <Stack.Screen name="Settings" component={SettingsScreen} />
       </Stack.Navigator>
     </NavigationContainer>

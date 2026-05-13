@@ -16,6 +16,27 @@ The product should now move from technical spikes into focused MVP implementatio
 
 ---
 
+# Current Implementation Status
+
+The spike phase is complete enough to start the production recording flow refactor.
+
+Production flow refactor has started:
+
+- recording logic is being separated from UI
+- file save logic is being separated from UI
+- playback logic is being separated from UI
+- spike/debug-only controls are being removed from the main recording path
+- Recent Recordings metadata persistence has started
+- old recording detail flow is now testable from Home
+
+Important implementation rule:
+
+The correct user-facing filename should be created during the initial Save Recording flow.
+
+Post-save rename for already-saved recordings is deferred unless a safe native file operation is validated later.
+
+---
+
 # What Ships In MVP
 
 MVP includes:
@@ -67,6 +88,8 @@ Make recording, saving, finding, and playing back audio reliable.
 YYYY-MM-DD – Meeting Name.m4a
 - invalid filename characters are sanitized
 - duplicate filenames handled safely
+- correct filename is created during initial save
+- post-save rename is deferred for already-saved recordings
 
 ### Meeting Recall Folder Export
 
@@ -89,6 +112,14 @@ Saved to Meeting Recall folder
 - verify saved file size is greater than 0
 - handle missing file state clearly
 - never show a recording as safely saved until validation passes
+
+### Recent Recordings
+
+- persist saved recording metadata locally
+- show saved recordings on Home
+- open old recordings from Home
+- reuse Recording Detail for old recordings
+- keep audio files local and user-accessible
 
 ---
 

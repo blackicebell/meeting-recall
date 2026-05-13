@@ -60,6 +60,16 @@ Ensure recordings are easy to find and reliably stored.
 
 ---
 
+## Current Status
+
+The technical spike phase has been completed enough to begin production flow refactoring.
+
+The production save flow should create the correct filename during initial Save Recording.
+
+Rename for already-saved recordings is deferred unless a safe native operation is validated.
+
+---
+
 ## Done Checklist
 - Recordings save locally
 - Recordings save inside visible “Meeting Recall” folder
@@ -84,6 +94,14 @@ YYYY-MM-DD – Meeting Name.m4a
 
 ## Feature Goal
 Allow users to rename recordings clearly and safely.
+
+---
+
+## MVP Status
+
+Rename for already-saved recordings is deferred.
+
+The MVP should prioritize creating the correct filename during initial save.
 
 ---
 
@@ -128,14 +146,36 @@ Provide fast access to recording and previous meetings.
 
 ---
 
+## Current Status
+
+Recent Recordings flow has started.
+
+Saved recording metadata is persisted locally so old recordings can appear on Home and reopen Recording Detail.
+
+Metadata persistence should include:
+
+- id
+- title
+- filename
+- file URI
+- duration
+- created date
+- folder/location
+
+---
+
 ## Done Checklist
 - Today’s Meetings displays correctly
 - Recent Recordings displays correctly
+- Recent Recordings loads from local metadata persistence
+- Saved recordings appear after Save Recording
 - Empty states exist
 - Scroll performance smooth
 - Recording list updates after save
 - Deleted recordings disappear correctly
 - Recording tap opens detail screen
+- Old recording playback works from detail screen
+- Actual filename remains visible on detail screen
 
 ---
 
@@ -152,8 +192,25 @@ Make playback and NotebookLM handoff effortless.
 - Waveform scrubber works
 - Open NotebookLM button visible
 - Share action works
+- Share verifies the recording file exists before opening the native share sheet
+- Share verifies file size is greater than 0 when available
+- Share verifies or prepares a filename ending in .m4a before opening the native share sheet
+- Shared recordings use audio/mp4 as the preferred MIME type, with audio/x-m4a as fallback if needed
+- Share preserves the recording filename and .m4a extension
+- Share opens the native OS share sheet for email, messaging, Drive, AirDrop on iOS later, and file sharing apps
+- Unsupported content type failures on common share targets are launch blockers
+- If share validation fails, user sees:
+Recording file could not be found.
+- If native share fails, user sees:
+Unable to share recording.
 - Rename works
 - Delete works
+- Delete requires confirmation before removing anything
+- Delete removes local metadata so the recording disappears from Recent Recordings
+- Delete attempts to remove the actual audio file from the device
+- If file deletion fails, user sees:
+Recording removed from the app, but the file may still remain in your Meeting Recall folder.
+- If the file is already missing, metadata cleanup still works
 - Missing file state handled
 - Playback errors handled gracefully
 
@@ -169,6 +226,10 @@ Make recordings extremely easy to upload into NotebookLM.
 ## Done Checklist
 - Open NotebookLM CTA works
 - Open NotebookLM prepares the file before opening NotebookLM
+- Recording file existence is verified before helper opens
+- Recording file size is verified as greater than 0 when available
+- Missing files block NotebookLM opening and show:
+Recording file could not be found.
 - Browser fallback works if app unavailable
 - Helper/interstitial screen appears
 - Recording easy to find in Recents if platform behavior allows it
@@ -209,8 +270,14 @@ Handle permissions gracefully and clearly.
 
 ### Microphone
 - Request appears correctly
+- Permission explainer appears before OS prompt
+- Explainer copy says:
+Meeting Recall needs microphone access to record your meetings.
 - Denied state handled
 - Permanently denied state handled
+- Denied recovery includes:
+Microphone access is off.
+- Denied recovery CTA opens OS Settings
 
 ---
 
@@ -223,8 +290,30 @@ Handle permissions gracefully and clearly.
 
 ### Files/Storage
 - Permission request works
+- First-run folder setup appears after microphone permission
+- Folder setup recommends Documents / Meeting Recall
+- Selected folder permission is persisted where supported
 - Denied state handled
 - Limited access handled
+
+---
+
+# 9A. Onboarding
+
+## Feature Goal
+Help new users understand the product before setup.
+
+---
+
+## Done Checklist
+- Three onboarding screens exist
+- Screen 1 explains recording meetings
+- Screen 2 explains NotebookLM workflow without claiming built-in AI
+- Screen 3 explains local files and Meeting Recall folder
+- Continue advances the flow
+- Skip bypasses education screens and continues setup
+- Onboarding completion persists locally
+- Returning users go directly to Home
 
 ---
 

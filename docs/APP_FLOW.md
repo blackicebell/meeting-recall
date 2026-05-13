@@ -30,7 +30,6 @@ The app should minimize thinking and make the NotebookLM handoff feel seamless.
 * Save Bottom Sheet
 * Recording Detail
 * Rename Modal
-* NotebookLM Handoff Helper
 * Settings
 
 ---
@@ -59,6 +58,10 @@ Quick loading state before app initialization.
 
 # 2. Onboarding Flow
 
+The first-run flow has three onboarding screens, then setup.
+Onboarding completion is persisted locally.
+Returning users go directly to Home.
+
 ## Screen 1
 
 ### Headline
@@ -66,13 +69,17 @@ Quick loading state before app initialization.
 Record meetings.
 Recall everything.
 
-### Purpose
+### Subtext
 
-Explain the core value of the app.
+Capture important conversations with a simple recorder built for meetings.
 
 ### CTA
 
 Continue
+
+### Secondary CTA
+
+Skip
 
 ---
 
@@ -80,21 +87,52 @@ Continue
 
 ### Headline
 
-Summaries,
-your way.
+Use NotebookLM for insights
 
-### Purpose
+### Subtext
 
-Explain NotebookLM workflow.
-
-### Key Message
-
-Meeting Recall records meetings.
-NotebookLM provides AI insights.
+Save your recording, open NotebookLM, and upload the file to get summaries, answers, and action items.
 
 ### CTA
 
-Get Started
+Continue
+
+### Secondary CTA
+
+Skip
+
+---
+
+## Screen 3
+
+### Headline
+
+Your recordings stay with you
+
+### Subtext
+
+Files save locally to your Meeting Recall folder, so you can find and upload them when you need them.
+
+### CTA
+
+Continue
+
+### Secondary CTA
+
+Skip
+
+---
+
+## Setup Flow
+
+After onboarding:
+
+1. Show microphone permission explainer
+2. Request microphone access
+3. If allowed, show folder setup
+4. Choose or confirm Meeting Recall folder
+5. Persist onboarding completion
+6. Go to Home
 
 ---
 
@@ -115,6 +153,28 @@ Required for recording.
 ## UX Rule
 
 Permission language should feel calm and non-technical.
+
+## Explainer Copy
+
+Headline:
+Enable microphone access
+
+Subtext:
+Meeting Recall needs microphone access to record your meetings.
+
+CTA:
+Allow Microphone Access
+
+## Denied Recovery
+
+Display:
+Microphone access is off.
+
+Subtext:
+Turn it on in Settings to record meetings.
+
+CTA:
+Open Settings
 
 ---
 
@@ -143,6 +203,19 @@ Ensure recordings save to accessible device storage.
 * Granted
 * Denied
 * Limited access
+
+## Folder Setup Copy
+
+Headline:
+Choose where recordings are saved
+
+Subtext:
+We recommend Documents - Meeting Recall so your files are easy to find when uploading to NotebookLM.
+
+CTA:
+Choose Folder
+
+If a Meeting Recall folder is already stored, show that the folder is ready and allow the user to continue.
 
 ---
 
@@ -302,10 +375,15 @@ User should understand that recordings save locally to the Meeting Recall folder
 
 Main interaction screen after recording.
 
+Recording Detail is the single source of truth after save.
+Do not duplicate this screen with a separate Recording Ready screen.
+
 ## UI Elements
 
 * Title
 * Metadata
+* Exact filename
+* Folder location
 * Playback controls
 * Waveform scrubber
 * Rewind/forward buttons
@@ -348,7 +426,7 @@ Open NotebookLM
 
 ↓
 
-Show helper/interstitial screen
+Validate file exists and is ready
 
 ↓
 
@@ -356,23 +434,24 @@ Open NotebookLM app or browser
 
 ---
 
-# NotebookLM Helper Screen
+# NotebookLM Direct Handoff
 
-## Headline
+## Behavior
 
-Your recording is ready
+Open NotebookLM immediately after file validation succeeds.
 
-## Instructions
+## Recording Detail Helper Copy
 
-1. Open NotebookLM
-2. Tap Add Source
-3. Upload your recording
+When NotebookLM opens, tap Add Source and choose this file.
 
 ---
 
 ## UX Goal
 
 Reduce confusion and eliminate searching.
+
+Do not show a confirmation modal for this non-destructive action.
+Recording Detail should provide the filename, folder location, and helper guidance before the user taps Open NotebookLM.
 
 ---
 
