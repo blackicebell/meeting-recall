@@ -195,7 +195,9 @@ The app should:
 1. Ensure recording exists
 2. Ensure recording is accessible
 3. Prepare file for sharing/file picker visibility
-4. Open NotebookLM app or browser immediately
+4. Open https://notebooklm.google.com directly
+5. Allow Android/iOS to route the URL to the NotebookLM app if a reliable app link is available
+6. Open NotebookLM immediately after validation succeeds
 
 Before this flow, the saved recording should already exist as a final public file in Documents / Meeting Recall with the expected filename:
 YYYY-MM-DD – Meeting Name.m4a
@@ -217,6 +219,9 @@ Reduce friction before entering NotebookLM.
 When the user taps Open NotebookLM from Recording Detail:
 - verify the recording file exists
 - verify file size is greater than 0 when available
+- open https://notebooklm.google.com directly
+- allow the OS to route the URL to the NotebookLM app when supported
+- accept browser opening as the reliable fallback behavior
 - open NotebookLM immediately when validation passes
 - do not open NotebookLM if the file is missing
 - do not show a confirmation modal during the normal flow
@@ -244,12 +249,29 @@ When NotebookLM opens, tap Add Source and choose this file.
 
 # Browser Fallback
 
-If NotebookLM app cannot open:
-- Open NotebookLM web version if possible
-- Inform user gracefully
+Opening in the browser is acceptable when Android does not route the NotebookLM URL to the installed app.
+
+Do not promise app-only opening unless real-device testing proves a stable app link.
 
 Example:
 “Opening NotebookLM in your browser.”
+
+---
+
+# Current Android Link Decision
+
+Meeting Recall opens:
+https://notebooklm.google.com
+
+Android may route this URL to the installed NotebookLM app if Google exposes a reliable app link.
+
+If Android opens the browser instead, keep that behavior. Do not rely on undocumented custom deep links for production.
+
+The user-facing button should say:
+Open NotebookLM
+
+It should not say:
+Open NotebookLM app
 
 ---
 
@@ -323,6 +345,7 @@ If rename is deferred, the app must communicate clearly when only the display ti
 - Rename synchronization
 - File picker compatibility
 - Browser fallback support
+- NotebookLM URL opening with OS-level app routing when available
 
 ---
 

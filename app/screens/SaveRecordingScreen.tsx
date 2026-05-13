@@ -6,6 +6,7 @@ import { PrimaryButton, Screen, SecondaryButton } from "../../components/ui";
 import { theme } from "../../constants/theme";
 import {
   buildRecordingFileName,
+  DEFAULT_RECORDING_TITLE,
   formatMillis,
   loadStoredMeetingRecallFolderUri,
   saveRecordingToMeetingRecallFolder
@@ -20,7 +21,7 @@ function getErrorMessage(error: unknown) {
 }
 
 export function SaveRecordingScreen({ navigation, route }: Props) {
-  const [title, setTitle] = useState("Test Recording");
+  const [title, setTitle] = useState(route.params.suggestedTitle ?? DEFAULT_RECORDING_TITLE);
   const [folderUri, setFolderUri] = useState<string | null>(null);
   const [folderStatus, setFolderStatus] = useState("loading folder");
   const [saveStatus, setSaveStatus] = useState("not saved");

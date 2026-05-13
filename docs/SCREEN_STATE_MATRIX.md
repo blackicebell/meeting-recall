@@ -169,6 +169,16 @@ Display:
 
 ---
 
+## Calendar Connected
+- Today’s Meetings section visible
+- Events loaded from Google Calendar primary events.list
+- Each meeting shows title and time
+- Tapping a meeting starts Recording with that meeting title as the suggested save title
+- No Calendar Fetch Debug panel is visible
+- No temporary Google Sign-In diagnostic controls are visible
+
+---
+
 ## Recordings Loading
 - avoid layout jumps
 - preserve spacing
@@ -249,11 +259,31 @@ Warn user before recording failure if possible.
 ## Incoming Call
 - preserve recording if possible
 - communicate interruption clearly
+- if recording stops, display:
+Recording was interrupted.
+- attempt to route user into Save Recording when a recoverable file exists
 
 ---
 
 ## App Backgrounded
 Handle gracefully per platform limitations.
+- true background recording is not supported for MVP
+- if app leaves active state while recording, attempt to stop and preserve the recording
+- on return, continue into Save Recording when possible
+
+---
+
+## Screen Locked
+- treat as an interruption for MVP
+- attempt to preserve the recording if platform behavior allows
+- avoid promising background recording support
+
+---
+
+## Recording Unexpectedly Stopped
+- user should not be left in a silent failed state
+- show calm interruption messaging
+- preserve and save the partial recording when possible
 
 ---
 
@@ -266,6 +296,11 @@ Attempt recovery if possible.
 
 ## Recording Active Confirmation
 User clearly understands recording is active.
+- timer remains highly visible
+- waveform remains active
+- red recording indicator remains visible
+- helper copy says:
+For best recording results, keep Meeting Recall open while recording.
 
 ---
 
@@ -391,6 +426,9 @@ Playback state visually obvious.
 
 ## NotebookLM Ready
 Recording clearly upload-ready.
+- Open NotebookLM validates file, then opens https://notebooklm.google.com directly.
+- If the OS routes the URL to the NotebookLM app, the app may open.
+- Browser opening is acceptable because NotebookLM may not expose a reliable third-party app deep link.
 
 ---
 
@@ -484,7 +522,9 @@ Recording removed:
 - starts when user taps Open NotebookLM from Recording Detail
 - validates the recording file exists
 - validates file size is greater than 0 when possible
-- opens NotebookLM app or browser immediately after validation succeeds
+- opens https://notebooklm.google.com immediately after validation succeeds
+- may open the NotebookLM app if the OS routes the URL to the installed app
+- may open the browser if app-link routing is unavailable
 - does not show a confirmation modal in the normal flow
 
 ---
@@ -492,7 +532,9 @@ Recording removed:
 # Error States
 
 ## NotebookLM Unavailable
-Fallback to browser if possible.
+Show an error only if https://notebooklm.google.com cannot open.
+
+App link routing may not be reliable across platforms.
 
 ---
 
@@ -513,11 +555,15 @@ Prevent NotebookLM flow.
 Display:
 Opening NotebookLM in your browser.
 
+Only show this if the app intentionally surfaces fallback messaging. The normal MVP flow may open the browser without an extra modal.
+
 ---
 
 ## Failed Open
 Display:
 “Unable to open NotebookLM.”
+
+Only show this if the NotebookLM URL cannot open.
 
 ---
 

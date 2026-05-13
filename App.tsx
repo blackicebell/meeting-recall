@@ -1,5 +1,6 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { useEffect } from "react";
 import { StatusBar } from "expo-status-bar";
 
 import { HomeScreen } from "./app/screens/HomeScreen";
@@ -9,11 +10,16 @@ import { RecordingScreen } from "./app/screens/RecordingScreen";
 import { SaveRecordingScreen } from "./app/screens/SaveRecordingScreen";
 import { SettingsScreen } from "./app/screens/SettingsScreen";
 import { theme } from "./constants/theme";
+import { initializeGoogleSignIn } from "./lib/googleSignIn";
 import type { RootStackParamList } from "./types/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 export default function App() {
+  useEffect(() => {
+    void initializeGoogleSignIn();
+  }, []);
+
   return (
     <NavigationContainer>
       <StatusBar style="dark" />

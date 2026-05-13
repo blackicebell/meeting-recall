@@ -36,9 +36,11 @@ Allow users to reliably record meetings with minimal friction.
 ---
 
 ### Stability
-- Recording survives app minimize/backgrounding
-- Recording interruption behavior is handled
-- Incoming call interruptions handled gracefully
+- Recording does not pretend to support background recording for MVP
+- Recording interruption behavior is handled gracefully
+- App backgrounding/screen lock attempts to preserve the recording when possible
+- Incoming call/audio interruptions are communicated clearly when detectable
+- Interrupted recordings route to Save Recording when a recoverable file exists
 - App crash does not corrupt recording
 - Long recordings remain stable
 
@@ -131,11 +133,20 @@ Help users organize recordings around meetings.
 
 ## Done Checklist
 - Google sign-in works
+- Google Sign-In access token is received before Calendar API calls
 - Calendar permissions handled correctly
 - Today's meetings load properly
+- Today's meetings are fetched from Google Calendar primary events.list
+- Calendar fetch uses timeMin/timeMax for the current day, singleEvents true, and orderBy startTime
 - Meeting tap pre-fills recording title
+- Meeting tap starts the recording flow with the meeting title as the suggested save title
 - Calendar disconnect state handled
 - Calendar loading failures handled gracefully
+- Calendar empty state shows:
+No meetings today.
+- Calendar error state shows:
+Unable to load calendar events.
+- Manual recording remains available when Calendar is disconnected, empty, or failed
 
 ---
 

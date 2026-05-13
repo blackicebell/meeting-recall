@@ -128,6 +128,29 @@ The actual Recording screen should use the red circular microphone/stop control 
 
 ---
 
+# Today’s Meetings
+
+Today’s Meetings is a production Home section, not a diagnostic surface.
+
+Rows should use:
+- clear meeting title
+- quiet time metadata
+- divider-based separation
+- generous but not oversized vertical spacing
+
+States:
+- loading: quiet loading copy
+- connected with events: meeting rows
+- empty: No meetings today.
+- error: Unable to load calendar events.
+- disconnected: connect guidance
+
+Tapping a meeting should start the recording flow with that meeting title as the suggested save title.
+
+Do not show temporary Google Sign-In or Calendar Fetch Debug panels in the production Home screen.
+
+---
+
 # Gradient Usage
 
 Gradients should be used sparingly.
@@ -587,3 +610,60 @@ Avoid turning the product into:
 - a feature-heavy enterprise tool
 
 Meeting Recall should feel intentionally minimal.
+
+---
+
+# Home Screen Components
+
+## Floating Record CTA
+
+The Home record action should use the shared recording CTA component, centered near the lower thumb zone.
+
+Rules:
+- red circular button
+- white microphone icon
+- same 72px diameter as the Recording screen start/stop action
+- subtle elevation/shadow
+- no gradients
+- press feedback should feel tactile but calm
+- tapping starts recording immediately
+
+This is the primary emotional action on Home.
+
+The Home quick-record CTA and the Recording screen start action should feel like one visual system:
+- same diameter
+- same red tone
+- same microphone geometry
+- same circular shape
+- same shadow/elevation
+- same press feedback
+
+---
+
+## Meeting Rows
+
+Meeting rows should feel calendar-aware but minimal.
+
+Hierarchy:
+- meeting title first
+- time second
+- optional subtle provider indicator
+
+Avoid adding provider labels or extra calendar metadata unless needed.
+
+Tapping a meeting should open Recording with the meeting title as quiet context.
+It should not auto-start recording.
+
+---
+
+## Recording Rows
+
+Recording rows should be easy to scan.
+
+Hierarchy:
+- title
+- date/time
+- filename
+- duration
+
+Filename should remain visible but visually quiet.

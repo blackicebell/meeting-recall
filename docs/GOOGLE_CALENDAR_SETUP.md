@@ -44,6 +44,51 @@ Use the least powerful scope that supports reading today’s events.
 
 ---
 
+# OAuth Client Configuration
+
+Android client ID added:
+
+246712386244-dv9r6taeedo7i6ji8kat6fembml23ssk.apps.googleusercontent.com
+
+This Android OAuth client remains in Google Cloud for package name and SHA-1 validation.
+
+It is NOT passed to GoogleSignin.configure().
+
+Web OAuth client ID used by GoogleSignin.configure():
+
+246712386244-lrdeep9efn801ae52rh6cfqqeqk3ju5r.apps.googleusercontent.com
+
+Android package:
+
+com.meetingrecall.app
+
+iOS client ID:
+
+Still needed.
+
+iOS bundle ID:
+
+com.meetingrecall.app
+
+Google Sign-In is configured for:
+
+- calendar.events.readonly scope
+- Android package com.meetingrecall.app
+- webClientId from the Web OAuth client
+- placeholder iOS client ID until Google Cloud Console setup is complete
+
+Previous invalid config removed:
+
+- androidClientId must not be passed to GoogleSignin.configure()
+
+Important:
+
+OAuth client IDs are public identifiers, not private secrets. Do not add client secrets to the app.
+
+A new Expo development build is required after native Google Sign-In config changes.
+
+---
+
 # Calendar API Behavior
 
 Fetch events for the current day only.

@@ -1,13 +1,85 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
 import { IconButton, Screen, SecondaryButton, SectionHeader } from "../../components/ui";
 import { theme } from "../../constants/theme";
+import { clearCalendarConnection, loadCalendarConnection, saveCalendarConnection } from "../../lib/calendarStore";
+import { devLog } from "../../lib/devLog";
+import {
+  connectGoogleCalendarAccount,
+  disconnectGoogleCalendarAccount
+} from "../../lib/googleSignIn";
+import type { CalendarConnection } from "../../types/calendar";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
 
 export function SettingsScreen({ navigation }: Props) {
+  const [calendarConnection, setCalendarConnection] = useState<CalendarConnection>({
+    connected: false,
+    email: null,
+    lastConnectedAt: null,
+    provider: "google"
+  });
+  const [calendarStatus, setCalendarStatus] = useState("Not connected");
+  const [isCalendarBusy, setIsCalendarBusy] = useState(false);
+
+  useEffect(() => {
+    async function loadConnection() {
+      const connection = await loadCalendarConnection();
+      setCalendarConnection(connection);
+      setCalendarStatus(connection.connected ? "Connected" : "Not connected");
+    }
+
+    loadConnection();
+  }, []);
+
+  async function connectCalendar() {
+    try {
+      setIsCalendarBusy(true);
+      setCalendarStatus("Connecting...");
+      const account = await connectGoogleCalendarAccount();
+      const connection = await saveCalendarConnection(account.email);
+
+      devLog.info("Google Calendar connected", {
+        accessTokenReceived: Boolean(account.accessToken),
+        email: account.email
+      });
+
+      setCalendarConnection(connection);
+      setCalendarStatus("Connected");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+
+      devLog.warn("Unable to connect Google Calendar.", error);
+
+      setCalendarStatus(`Unable to connect Google Calendar. ${message}`);
+    } finally {
+      setIsCalendarBusy(false);
+    }
+  }
+
+  async function disconnectCalendar() {
+    try {
+      setIsCalendarBusy(true);
+      await disconnectGoogleCalendarAccount();
+      await clearCalendarConnection();
+      setCalendarConnection({
+        connected: false,
+        email: null,
+        lastConnectedAt: null,
+        provider: "google"
+      });
+      setCalendarStatus("Not connected");
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      setCalendarStatus(`Unable to disconnect Google Calendar. ${message}`);
+    } finally {
+      setIsCalendarBusy(false);
+    }
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -22,9 +94,16 @@ export function SettingsScreen({ navigation }: Props) {
       <View style={styles.row}>
         <View style={styles.rowText}>
           <Text style={styles.rowTitle}>Connect Google Calendar</Text>
-          <Text style={styles.meta}>Use today&apos;s meetings to suggest titles.</Text>
+          <Text style={styles.meta}>
+            {calendarConnection.connected
+              ? calendarConnection.email ?? "Calendar connected"
+              : "Use today's meetings to suggest titles."}
+          </Text>
+          <Text style={styles.meta}>{calendarStatus}</Text>
         </View>
-        <SecondaryButton onPress={() => undefined}>Connect</SecondaryButton>
+        <SecondaryButton onPress={calendarConnection.connected ? disconnectCalendar : connectCalendar}>
+          {isCalendarBusy ? "Working" : calendarConnection.connected ? "Disconnect" : "Connect"}
+        </SecondaryButton>
       </View>
 
       <View style={styles.section}>

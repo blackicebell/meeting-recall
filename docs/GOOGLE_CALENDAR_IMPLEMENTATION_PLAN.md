@@ -39,6 +39,26 @@ Meeting Recall should not become a scheduling app.
   - added to app.json
 - Google OAuth config placeholders:
   - constants/google.ts
+- Android OAuth client ID:
+  - added in constants/google.ts
+- iOS OAuth client ID:
+  - still needed
+- Google Sign-In runtime configuration:
+  - configured with calendar.events.readonly scope
+  - webClientId is configured
+  - iOS client ID is ignored until a real value replaces the placeholder
+- Settings Calendar UI:
+  - Connect button triggers Google Sign-In
+  - Connected account email is shown when available
+  - Disconnect clears local Calendar connection metadata
+- Today’s Meetings fetch:
+  - implemented with Google Calendar primary events.list
+  - uses Google Sign-In access token
+  - fetches current-day events only
+  - Home shows connected, empty, disconnected, and error states
+- Tap meeting behavior:
+  - opens Recording with the event title as the suggested save title
+  - Save Recording still creates the final date-first filename
 
 ## Calendar Requirement
 
@@ -111,6 +131,23 @@ Required:
 - Web client ID may be needed if offline access or server auth code is used later
 
 For MVP, prefer online access only and avoid backend token exchange.
+
+Current Android client ID:
+
+246712386244-dv9r6taeedo7i6ji8kat6fembml23ssk.apps.googleusercontent.com
+
+Current Web client ID passed to GoogleSignin.configure():
+
+246712386244-lrdeep9efn801ae52rh6cfqqeqk3ju5r.apps.googleusercontent.com
+
+Important:
+
+@react-native-google-signin/google-signin does not accept androidClientId as a runtime configure() option. Android sign-in is tied to the Google Cloud Android OAuth client through package name and SHA-1. The Android client ID is still documented in constants/google.ts for setup clarity, but it must not be passed to GoogleSignin.configure().
+
+GoogleSignin.configure() should use:
+
+- webClientId
+- calendar.events.readonly scope
 
 ### Android Requirements
 
@@ -336,6 +373,11 @@ Current app.json preparation:
   - com.meetingrecall.app
 - @react-native-google-signin/google-signin config plugin added.
 - iOS URL scheme currently uses a placeholder and must be replaced with the reversed iOS client ID from Google Cloud Console.
+- constants/google.ts contains the Android OAuth client ID and placeholder iOS/web client IDs.
+- lib/googleSignIn.ts configures Google Sign-In with:
+  - calendar.events.readonly scope
+  - iOS client ID when available
+  - web client ID when available
 
 Important:
 
@@ -371,33 +413,32 @@ eas build -p ios --profile development
 
 # Proposed Implementation Shape
 
-## Files To Add Later
+## Files Added
 
-- lib/googleCalendarAuth.ts
 - lib/googleCalendarApi.ts
 - lib/calendarStore.ts
 - types/calendar.ts
-- hooks/useTodayMeetings.ts
+- lib/googleSignIn.ts
 
 ## UI Touchpoints Later
 
 Home:
 
-- Today’s Meetings section
-- Connect Calendar empty state
-- No meetings today state
-- Calendar loading state
-- Calendar error state
+- Today’s Meetings section implemented
+- Connect Calendar/disconnected empty state implemented
+- No meetings today state implemented
+- Calendar loading state implemented
+- Calendar error state implemented
 
 Settings:
 
-- Calendar connected state
-- Account email
-- Disconnect Calendar
+- Calendar connected state implemented
+- Account email implemented when available
+- Disconnect Calendar implemented
 
 Recording:
 
-- Accept optional prefilled title from selected calendar event
+- Accepts optional prefilled title from selected calendar event
 
 Save Recording:
 
@@ -421,28 +462,90 @@ Only keep today's fetched meetings in memory unless caching is needed for percei
 
 # Implementation Order
 
-1. Replace placeholder OAuth client IDs and iOS URL scheme after Google Cloud Console setup.
-2. Add Google Cloud project setup.
-3. Build new Android development build.
-4. Build new iOS development build when ready to test iPhone.
-5. Implement sign-in and disconnect in isolation.
-6. Request calendar.events.readonly scope.
-7. Fetch today's primary calendar events.
-8. Add Home states:
+1. Confirm the Android OAuth client has package com.meetingrecall.app and the correct development SHA-1.
+2. Replace placeholder iOS OAuth client ID and iOS URL scheme after Google Cloud Console setup.
+3. Add/confirm Google Cloud project setup.
+4. Build new Android development build.
+5. Build new iOS development build when ready to test iPhone.
+6. Implement sign-in and disconnect in isolation.
+7. Request calendar.events.readonly scope. Completed.
+8. Fetch today's primary calendar events. Completed.
+9. Add Home states. Completed:
    - disconnected
    - loading
    - no meetings
    - events
    - error
-9. Tap meeting -> Recording screen with prefilled title.
-10. Save flow uses prefilled title to create date-first filename.
-11. Add Settings connected/disconnect UI.
-12. Run QA on real Android.
-13. Repeat setup and QA on real iPhone.
+10. Tap meeting -> Recording screen with prefilled title. Completed.
+11. Save flow uses prefilled title to create date-first filename. Completed.
+12. Add Settings connected/disconnect UI. Completed.
+13. Run QA on real Android.
+14. Repeat setup and QA on real iPhone.
 
 ---
 
 # Risks To Watch
+
+## Current Debug Status
+
+Google Sign-In now connects successfully and returns an access token.
+
+Current observed issue:
+
+- Home shows:
+Unable to load calendar events.
+
+This means the remaining problem is inside the Google Calendar events.list request or Google Cloud Calendar API setup.
+
+Latest fetch error discovered:
+
+- HTTP status: 400
+- Error: Invalid field selection
+- Cause: request used an invalid partial response selector:
+fields=items(id,summary,start,end),error
+
+Fix applied:
+
+- Removed the fields parameter completely.
+- Kept the required events.list query params:
+  - timeMin
+  - timeMax
+  - singleEvents=true
+  - orderBy=startTime
+  - maxResults=20
+- Kept Authorization: Bearer ACCESS_TOKEN.
+
+Current Calendar fetch diagnostic approach:
+
+- Home shows dev-only Calendar Fetch Debug output.
+- Console logging keeps the raw fetch error available during development.
+
+The next real-device test should capture:
+
+- access token present true/false
+- request URL
+- timeMin
+- timeMax
+- HTTP status code
+- raw error response body
+- parsed error message
+- scope being used
+- number of events returned if successful
+
+Expected interpretations:
+
+- 401 means the token is invalid or expired, so the user should reconnect Google Calendar.
+- 403 may mean Calendar API is not enabled, the OAuth scope is insufficient, the app/test user setup is incomplete, or Google Cloud permission configuration is blocking the request.
+- 200 with zero events should show:
+No meetings today.
+
+Remaining setup gaps:
+
+- The Android dev build must include @react-native-google-signin/google-signin.
+- Android OAuth client must match package com.meetingrecall.app and the signing SHA-1 used by the installed development build.
+- iOS client ID and iOS URL scheme are still placeholders.
+- Calendar event fetching is implemented and should be tested on real Android with a connected account.
+- Exact Calendar fetch failure is pending the next device test.
 
 ## OAuth Verification
 
@@ -496,3 +599,38 @@ The integration is production-appropriate only when:
 - disconnected/denied/error states are calm
 - manual recording always remains available
 - tap meeting -> record -> save uses the meeting title correctly
+
+---
+
+# Calendar Provider Architecture Update
+
+Google Calendar is now treated as a calendar provider behind a shared service.
+
+Provider module:
+
+lib/calendar/providers/googleCalendarProvider.ts
+
+Shared service:
+
+lib/calendar/calendarService.ts
+
+Home should fetch meetings through the shared service and should not import Google Calendar request logic directly.
+
+All providers normalize events into MeetingEvent:
+
+- id
+- provider
+- title
+- startTime
+- endTime
+- raw
+
+Current provider:
+
+- google
+
+Future provider:
+
+- outlook
+
+Outlook Calendar should be added later through its own provider module without changing the Home screen contract.

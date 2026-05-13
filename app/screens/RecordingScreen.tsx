@@ -1,7 +1,8 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect, useRef } from "react";
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Animated, AppState, Easing, StyleSheet, Text, View } from "react-native";
 
+import { RecordingActionButton } from "../../components/recording/RecordingActionButton";
 import { IconButton, Screen, SecondaryButton } from "../../components/ui";
 import { theme } from "../../constants/theme";
 import { formatMillis } from "../../lib/fileStorage";
@@ -51,39 +52,51 @@ function getBarScale(index: number, level: number, phase: number, isRecording: b
   );
 }
 
-type RecordingActionButtonProps = {
-  label: string;
-  mode: "record" | "stop";
-  onPress: () => void;
-};
-
-function RecordingActionButton({ label, mode, onPress }: RecordingActionButtonProps) {
-  return (
-    <Pressable
-      accessibilityLabel={label}
-      accessibilityRole="button"
-      onPress={onPress}
-      style={styles.recordingAction}
-    >
-      {mode === "record" ? (
-        <>
-          <View style={styles.micHead} />
-          <View style={styles.micStem} />
-          <View style={styles.micBase} />
-        </>
-      ) : (
-        <View style={styles.stopIcon} />
-      )}
-    </Pressable>
-  );
-}
-
-export function RecordingScreen({ navigation }: Props) {
+export function RecordingScreen({ navigation, route }: Props) {
   const recording = useRecordingController();
+  const autoStartAttempted = useRef(false);
+  const appState = useRef(AppState.currentState);
+  const recordingStatusRef = useRef(recording.status);
+  const stopRecordingRef = useRef(recording.stop);
+  const stoppingForInterruption = useRef(false);
+  const [interruptionMessage, setInterruptionMessage] = useState<string | null>(null);
   const waveformBars = useRef(
     Array.from({ length: WAVEFORM_BAR_COUNT }, () => new Animated.Value(0.2))
   ).current;
   const waveformPhase = useRef(0);
+
+  useEffect(() => {
+    recordingStatusRef.current = recording.status;
+    stopRecordingRef.current = recording.stop;
+  }, [recording.status, recording.stop]);
+
+  useEffect(() => {
+    if (!route.params?.autoStart || autoStartAttempted.current) {
+      return;
+    }
+
+    autoStartAttempted.current = true;
+    recording.start();
+  }, [route.params?.autoStart]);
+
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      const wasActive = appState.current === "active";
+      appState.current = nextAppState;
+
+      if (
+        wasActive &&
+        nextAppState !== "active" &&
+        (recordingStatusRef.current === "recording" || recordingStatusRef.current === "paused")
+      ) {
+        handleInterruptedStop();
+      }
+    });
+
+    return () => {
+      subscription.remove();
+    };
+  }, []);
 
   useEffect(() => {
     const meteringLevel = normalizeMetering(recording.metering);
@@ -115,6 +128,30 @@ export function RecordingScreen({ navigation }: Props) {
 
     navigation.navigate("SaveRecording", {
       durationMillis: stoppedRecording.durationMillis,
+      suggestedTitle: route.params?.suggestedTitle,
+      tempUri: stoppedRecording.uri
+    });
+  }
+
+  async function handleInterruptedStop() {
+    if (stoppingForInterruption.current) {
+      return;
+    }
+
+    stoppingForInterruption.current = true;
+    setInterruptionMessage("Recording was interrupted.");
+
+    const stoppedRecording = await stopRecordingRef.current();
+    stoppingForInterruption.current = false;
+
+    if (!stoppedRecording) {
+      setInterruptionMessage("Recording was interrupted. We could not prepare it to save.");
+      return;
+    }
+
+    navigation.navigate("SaveRecording", {
+      durationMillis: stoppedRecording.durationMillis,
+      suggestedTitle: route.params?.suggestedTitle,
       tempUri: stoppedRecording.uri
     });
   }
@@ -138,6 +175,15 @@ export function RecordingScreen({ navigation }: Props) {
       </View>
 
       <View style={styles.content}>
+        {route.params?.suggestedTitle ? (
+          <View style={styles.meetingContext}>
+            <Text style={styles.meetingContextLabel}>Recording for:</Text>
+            <Text numberOfLines={1} style={styles.meetingContextTitle}>
+              {route.params.suggestedTitle}
+            </Text>
+          </View>
+        ) : null}
+
         <View style={styles.statusRow}>
           <View style={[styles.statusDot, recording.status === "recording" && styles.activeDot]} />
           <Text style={styles.statusText}>{stateLabel}</Text>
@@ -167,8 +213,10 @@ export function RecordingScreen({ navigation }: Props) {
 
         {recording.errorMessage ? (
           <Text style={styles.error}>{recording.errorMessage}</Text>
+        ) : interruptionMessage ? (
+          <Text style={styles.notice}>{interruptionMessage}</Text>
         ) : (
-          <Text style={styles.helper}>Keep Meeting Recall open during recording.</Text>
+          <Text style={styles.helper}>For best recording results, keep Meeting Recall open while recording.</Text>
         )}
       </View>
 
@@ -210,6 +258,26 @@ const styles = StyleSheet.create({
     alignItems: "center",
     flex: 1,
     justifyContent: "center"
+  },
+  meetingContext: {
+    alignItems: "center",
+    marginBottom: theme.spacing.xl,
+    maxWidth: "92%"
+  },
+  meetingContextLabel: {
+    color: theme.colors.textSubtle,
+    fontSize: 12,
+    fontWeight: "700",
+    letterSpacing: 1.8,
+    lineHeight: 18,
+    textTransform: "uppercase"
+  },
+  meetingContextTitle: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.metadata.fontSize,
+    fontWeight: "700",
+    lineHeight: theme.typography.metadata.lineHeight,
+    marginTop: theme.spacing.xs
   },
   statusRow: {
     alignItems: "center",
@@ -261,47 +329,15 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.xl,
     textAlign: "center"
   },
+  notice: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.metadata.fontSize,
+    fontWeight: "700",
+    marginTop: theme.spacing.xl,
+    textAlign: "center"
+  },
   actions: {
     alignItems: "center",
     gap: theme.spacing.md
-  },
-  recordingAction: {
-    alignItems: "center",
-    backgroundColor: theme.colors.recording,
-    borderRadius: 36,
-    elevation: 8,
-    height: 72,
-    justifyContent: "center",
-    shadowColor: theme.colors.recording,
-    shadowOffset: { height: 8, width: 0 },
-    shadowOpacity: 0.22,
-    shadowRadius: 14,
-    width: 72
-  },
-  micHead: {
-    backgroundColor: theme.colors.white,
-    borderRadius: 9,
-    height: 26,
-    width: 16
-  },
-  micStem: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.pill,
-    height: 12,
-    marginTop: -1,
-    width: 3
-  },
-  micBase: {
-    backgroundColor: theme.colors.white,
-    borderRadius: theme.radii.pill,
-    height: 3,
-    marginTop: 1,
-    width: 20
-  },
-  stopIcon: {
-    backgroundColor: theme.colors.white,
-    borderRadius: 5,
-    height: 24,
-    width: 24
   }
 });

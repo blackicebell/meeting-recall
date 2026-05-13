@@ -79,10 +79,16 @@ Users must be able to reliably record meetings without worrying about:
 
 # Recording Persistence
 
-Recording sessions should survive:
-- app minimization
-- temporary backgrounding
-- short interruptions if platform allows
+Recording works best while Meeting Recall remains active.
+
+True background recording is not part of the current MVP unless validated later with native support.
+
+When the app is minimized, locked, or interrupted during recording, the app should:
+- detect the interruption when possible
+- attempt to stop and preserve the current recording
+- route the user into Save Recording when a recoverable file exists
+- avoid silent failure
+- avoid promising unsupported background recording
 
 ---
 
@@ -95,6 +101,12 @@ Expected interruption scenarios:
 - headphones disconnecting
 
 The app should fail gracefully and preserve recordings whenever possible.
+
+Preferred user-facing copy:
+“Recording was interrupted.”
+
+Preferred recording guidance:
+“For best recording results, keep Meeting Recall open while recording.”
 
 ---
 

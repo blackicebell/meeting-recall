@@ -625,3 +625,46 @@ The product succeeds when a non-technical user can:
 4. Immediately find the recording
 5. Upload it without confusion
 6. Get insights with minimal friction
+
+---
+
+# Recording Entry Modes
+
+Meeting Recall supports two recording entry modes.
+
+## Fast Capture
+
+From Home:
+
+Tap the centered floating red record button
+
+â†“
+
+Open Recording screen
+
+â†“
+
+Start recording immediately
+
+Use this for quick capture when the user wants to record now.
+
+---
+
+## Intentional Meeting Capture
+
+From Todayâ€™s Meetings:
+
+Tap a meeting
+
+â†“
+
+Open Recording screen with meeting context
+
+â†“
+
+User starts recording when ready
+
+Do not auto-start recordings from calendar meeting taps.
+
+Reason:
+Users may tap a meeting before it begins and need time to prepare.

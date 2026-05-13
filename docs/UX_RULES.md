@@ -222,3 +222,33 @@ Good:
 A non-technical user should be able to use the app without instructions.
 
 If the user needs a tutorial to understand the main workflow, the UX is not clear enough.
+
+---
+
+# 13. Home Screen UX
+
+Home should remain provider-agnostic and focused on the next useful action.
+
+The user should be able to:
+- start a manual recording quickly
+- tap a meeting to prefill a recording title
+- reopen an old recording
+
+The floating record button should sit centered in a comfortable thumb zone and remain the clearest action on the screen.
+
+Fast Capture:
+- tapping the floating record button should open Recording and start recording immediately
+
+Intentional Meeting Capture:
+- tapping a calendar meeting should open Recording with the meeting title visible
+- it should not auto-start recording
+- the user stays in control of when the meeting recording begins
+
+Today's Meetings and Recent Recordings should use dividers, typography, and spacing instead of heavy cards.
+
+Avoid:
+- debug panels
+- raw provider output
+- dense dashboard layouts
+- excessive metadata
+- competing primary actions

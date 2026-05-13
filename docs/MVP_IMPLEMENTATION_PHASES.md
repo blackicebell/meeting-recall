@@ -388,3 +388,15 @@ Meeting Recall MVP succeeds when:
 - recordings are easy to find
 - NotebookLM upload feels understandable
 - users can get AI insights without expensive subscriptions
+
+---
+
+# Calendar Provider Direction
+
+Calendar integration should use a provider-agnostic architecture.
+
+- Google Calendar is the current MVP provider
+- Outlook Calendar is planned for a later phase
+- Home should depend on the shared calendar service, not Google-specific APIs
+- all provider events should normalize into the MeetingEvent model
+- tapping any provider meeting should prefill the recording title

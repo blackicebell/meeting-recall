@@ -1,7 +1,7 @@
 import * as FileSystem from "expo-file-system/legacy";
 
 const ANDROID_EXPORT_PARENT_FOLDER = "Documents";
-const DEFAULT_RECORDING_TITLE = "Test Recording";
+export const DEFAULT_RECORDING_TITLE = "Meeting Recording";
 const SAF_FOLDER_STORE_FILE = "meeting-recall-saf-folder-uri.txt";
 export const RECORDING_SHARE_MIME_TYPE = "audio/mp4";
 export const RECORDING_SHARE_FALLBACK_MIME_TYPE = "audio/x-m4a";

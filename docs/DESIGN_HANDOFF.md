@@ -161,6 +161,24 @@ Provide fast access to:
 - Keep Recent Recordings visible above the floating record CTA
 - Do not use gradients on the record CTA
 - Reserve the red circular microphone/stop control for the actual Recording screen
+- Show Today’s Meetings as a production section, not a debug/testing surface
+- Meeting rows should use strong titles with quiet time metadata
+- Do not show Calendar Fetch Debug or Google Sign-In diagnostic UI in the production Home screen
+
+## Production Structure
+- app header
+- settings icon
+- Today’s Meetings
+- Recent Recordings
+- lower thumb-friendly Record meeting CTA
+
+## Calendar Behavior
+- If meetings load, show meeting title and time
+- If no meetings exist, show:
+No meetings today.
+- If calendar loading fails, show:
+Unable to load calendar events.
+- Tapping a meeting starts the recording flow with that meeting title as the suggested save title
 
 ---
 
@@ -555,3 +573,48 @@ The design succeeds when a non-technical user can:
 5. Locate the recording quickly
 6. Upload successfully
 7. Feel calm and in control throughout the experience
+
+---
+
+# Home Screen Production Hierarchy
+
+Home should feel calm, scannable, and recording-first.
+
+Primary structure:
+- header
+- Today's Meetings
+- Recent Recordings
+- floating Record CTA
+
+Today's Meetings rows should be lightweight:
+- strong meeting title
+- quiet time metadata
+- subtle divider rhythm
+- optional small provider indicator only if it does not add clutter
+
+Recent Recordings rows should prioritize:
+- recording title
+- date/time metadata
+- exact filename as subtle secondary text
+- quiet duration on the trailing edge
+
+The floating Record CTA should be centered near the bottom, thumb-friendly, circular, red, and emotionally clear without using gradients.
+
+It should use the same shared recording CTA as the Recording screen:
+- same diameter
+- same icon size
+- same red tone
+- same shadow/elevation
+- same press feedback
+
+Home placement should be true screen center, not offset by content padding.
+
+Home header alignment should feel precise:
+- title and settings icon should align visually
+- settings should feel attached to the header, not floating independently
+- supporting copy should remain quiet
+
+Recording entry behavior:
+- floating Record CTA starts recording immediately
+- Todayâ€™s Meetings rows open Recording with meeting context but do not auto-start
+- calendar context should appear as quiet copy near the top of Recording

@@ -459,3 +459,15 @@ Development succeeds when:
 - non-technical users never feel lost
 
 Meeting Recall should feel intentionally focused from day one.
+
+---
+
+# Calendar Provider Direction
+
+Calendar support should remain provider-agnostic.
+
+- Google Calendar is the current provider
+- Outlook Calendar is planned after Google is stable
+- provider logic should live behind the shared calendar service
+- Home should not import provider-specific calendar APIs
+- calendar features must remain limited to naming and organizing recordings

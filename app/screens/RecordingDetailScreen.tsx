@@ -14,6 +14,7 @@ import * as FileSystem from "expo-file-system/legacy";
 import { IconButton, PrimaryButton, Screen, SecondaryButton } from "../../components/ui";
 import { theme } from "../../constants/theme";
 import { useAudioPlayback } from "../../hooks/useAudioPlayback";
+import { devLog } from "../../lib/devLog";
 import {
   deleteRecordingFileIfPossible,
   ensureM4aFileName,
@@ -82,22 +83,49 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
           : recording.fileSize;
 
       if (!fileInfo.exists) {
+        devLog.warn("NotebookLM file validation failed", {
+          fileExists: false,
+          fileName: expectedFileName,
+          fileUri: recording.fileUri
+        });
         setActionError("Recording file could not be found.");
         return false;
       }
 
       if (fileSize <= 0) {
+        devLog.warn("NotebookLM file validation failed", {
+          fileExists: true,
+          fileName: expectedFileName,
+          fileSize,
+          fileUri: recording.fileUri
+        });
         setActionError("Recording file is not ready yet.");
         return false;
       }
 
       if (!expectedFileName.toLowerCase().endsWith(".m4a")) {
+        devLog.warn("NotebookLM file validation failed", {
+          fileExists: true,
+          fileName: expectedFileName,
+          reason: "missing-m4a-extension"
+        });
         setActionError("Recording file is not ready yet.");
         return false;
       }
 
+      devLog.info("NotebookLM file validation succeeded", {
+        fileExists: true,
+        fileName: expectedFileName,
+        fileSize,
+        fileUri: recording.fileUri
+      });
+
       return true;
-    } catch {
+    } catch (error) {
+      devLog.warn("NotebookLM file validation failed", {
+        error: getErrorMessage(error),
+        fileUri: recording.fileUri
+      });
       setActionError("Recording file could not be found.");
       return false;
     }
@@ -108,23 +136,47 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
       return;
     }
 
-    try {
-      setActionError(null);
-      await Linking.openURL(NOTEBOOKLM_URL);
-    } catch (error) {
-      try {
-        const canOpenBrowser = await Linking.canOpenURL(NOTEBOOKLM_URL);
+    setActionError(null);
 
-        if (canOpenBrowser) {
-          setActionError("Opening NotebookLM in your browser.");
-          await Linking.openURL(NOTEBOOKLM_URL);
-          return;
-        }
-      } catch {
-        // Fall through to the user-facing error below.
+    try {
+      const notebookLmSupported = await Linking.canOpenURL(NOTEBOOKLM_URL);
+
+      devLog.info("NotebookLM open attempt", {
+        attemptedFirstUrl: NOTEBOOKLM_URL,
+        browserFallbackUsed: "not-detectable-before-open",
+        primaryCanOpenUrlResult: notebookLmSupported
+      });
+
+      if (!notebookLmSupported) {
+        setActionError("Unable to open NotebookLM.");
+        return;
       }
 
-      console.warn(getErrorMessage(error));
+      await Linking.openURL(NOTEBOOKLM_URL);
+
+      devLog.info("NotebookLM open result", {
+        browserFallbackUsed: "os-routed-app-or-browser",
+        fallbackUsed: false,
+        finalOpenResult: "opened-primary-url",
+        finalUrlOpened: NOTEBOOKLM_URL
+      });
+
+      return;
+    } catch (error) {
+      devLog.warn("NotebookLM primary open failed", {
+        attemptedFirstUrl: NOTEBOOKLM_URL,
+        error: getErrorMessage(error)
+      });
+
+      // The primary NotebookLM URL is also the safest fallback. Android may route
+      // it to the app when NotebookLM exposes an app link, or to the browser.
+      devLog.info("NotebookLM fallback result", {
+        browserFallbackUsed: false,
+        fallbackUrl: NOTEBOOKLM_URL,
+        fallbackUsed: true,
+        finalUrlOpened: null
+      });
+
       setActionError("Unable to open NotebookLM.");
     }
   }
@@ -141,14 +193,12 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
       });
       const Sharing = await import("expo-sharing");
 
-      if (__DEV__) {
-        console.info("Meeting Recall share payload", {
-          fileName: shareFile.fileName,
-          fileSize: shareFile.fileSize,
-          mimeType: shareFile.mimeType,
-          uri: shareFile.uri
-        });
-      }
+      devLog.info("Meeting Recall share payload", {
+        fileName: shareFile.fileName,
+        fileSize: shareFile.fileSize,
+        mimeType: shareFile.mimeType,
+        uri: shareFile.uri
+      });
 
       if (!(await Sharing.isAvailableAsync())) {
         setActionError("Unable to share recording.");
@@ -171,7 +221,7 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
         return;
       }
 
-      console.warn(message);
+      devLog.warn("Unable to share recording.", message);
       setActionError("Unable to share recording.");
     }
   }
@@ -181,7 +231,7 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
       await playback.play();
     } catch (error) {
       // Detail error handling will be expanded in the production error-state pass.
-      console.warn(getErrorMessage(error));
+      devLog.warn("Unable to play recording.", getErrorMessage(error));
     }
   }
 
@@ -189,7 +239,7 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
     try {
       await playback.stop();
     } catch (error) {
-      console.warn(getErrorMessage(error));
+      devLog.warn("Unable to stop playback.", getErrorMessage(error));
     }
   }
 

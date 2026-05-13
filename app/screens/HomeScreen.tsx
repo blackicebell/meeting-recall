@@ -3,24 +3,54 @@ import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
-import { EmptyState, IconButton, PrimaryButton, Screen, SectionHeader } from "../../components/ui";
+import { RecordingActionButton } from "../../components/recording/RecordingActionButton";
+import { EmptyState, IconButton, Screen, SectionHeader } from "../../components/ui";
 import { theme } from "../../constants/theme";
+import { devLog } from "../../lib/devLog";
+import {
+  CalendarServiceError,
+  fetchTodayMeetingsFromConnectedProviders
+} from "../../lib/calendar/calendarService";
 import { formatMillis } from "../../lib/fileStorage";
 import { loadRecordings, type StoredRecording } from "../../lib/recordingStore";
+import type { MeetingEvent } from "../../types/calendar";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
 
-function formatDate(isoDate: string) {
+function formatRecordingDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-US", {
     day: "numeric",
-    month: "short",
-    year: "numeric"
+    hour: "numeric",
+    minute: "2-digit",
+    month: "short"
   }).format(new Date(isoDate));
+}
+
+function formatMeetingTime(startTime: string | null, endTime: string | null) {
+  if (!startTime) {
+    return "Time unavailable";
+  }
+
+  const startDate = new Date(startTime);
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    hour: "numeric",
+    minute: "2-digit"
+  });
+
+  if (!endTime) {
+    return formatter.format(startDate);
+  }
+
+  return `${formatter.format(startDate)} - ${formatter.format(new Date(endTime))}`;
 }
 
 export function HomeScreen({ navigation }: Props) {
   const [recordings, setRecordings] = useState<StoredRecording[]>([]);
+  const [todayMeetings, setTodayMeetings] = useState<MeetingEvent[]>([]);
+  const [calendarStatus, setCalendarStatus] = useState<
+    "checking" | "connected" | "disconnected" | "empty" | "failed"
+  >("checking");
   const [loadStatus, setLoadStatus] = useState("idle");
 
   useFocusEffect(
@@ -43,7 +73,41 @@ export function HomeScreen({ navigation }: Props) {
         }
       }
 
+      async function refreshTodayMeetings() {
+        try {
+          setCalendarStatus("checking");
+          const result = await fetchTodayMeetingsFromConnectedProviders();
+
+          if (!result.connected) {
+            if (isActive) {
+              setTodayMeetings([]);
+              setCalendarStatus("disconnected");
+            }
+            return;
+          }
+
+          if (isActive) {
+            devLog.info("Calendar service result", result.debugInfo);
+            setTodayMeetings(result.meetings);
+            setCalendarStatus(result.meetings.length > 0 ? "connected" : "empty");
+          }
+        } catch (error) {
+          devLog.warn("Unable to load calendar events.", error);
+
+          if (isActive) {
+            setTodayMeetings([]);
+            if (error instanceof CalendarServiceError) {
+              devLog.warn("Calendar service error", error.debugInfo);
+              setCalendarStatus(error.httpStatus === 401 ? "disconnected" : "failed");
+            } else {
+              setCalendarStatus("failed");
+            }
+          }
+        }
+      }
+
       refreshRecordings();
+      refreshTodayMeetings();
 
       return () => {
         isActive = false;
@@ -54,8 +118,49 @@ export function HomeScreen({ navigation }: Props) {
   return (
     <Screen scroll={false}>
       <View style={styles.header}>
-        <Text style={styles.title}>Meeting Recall</Text>
-        <IconButton icon="settings" label="Settings" onPress={() => navigation.navigate("Settings")} />
+        <View style={styles.headerText}>
+          <Text style={styles.title}>Meeting Recall</Text>
+          <Text style={styles.subtitle}>Record, save, and open in NotebookLM.</Text>
+        </View>
+        <View style={styles.settingsButton}>
+          <IconButton icon="settings" label="Settings" onPress={() => navigation.navigate("Settings")} />
+        </View>
+      </View>
+
+      <View style={styles.meetingsSection}>
+        <SectionHeader>Today&apos;s Meetings</SectionHeader>
+        <View style={styles.meetingsList}>
+          {calendarStatus === "connected" ? (
+            todayMeetings.map((meeting) => (
+              <Pressable
+                key={meeting.id}
+                style={({ pressed }) => [
+                  styles.meetingRow,
+                  pressed ? styles.pressedRow : null
+                ]}
+                onPress={() => navigation.navigate("Recording", { suggestedTitle: meeting.title })}
+              >
+                <View style={styles.providerDot} />
+                <View style={styles.meetingText}>
+                  <Text numberOfLines={1} style={styles.meetingTitle}>{meeting.title}</Text>
+                  <Text style={styles.meta}>{formatMeetingTime(meeting.startTime, meeting.endTime)}</Text>
+                </View>
+              </Pressable>
+            ))
+          ) : (
+            <View style={styles.meetingState}>
+              <Text style={styles.meetingStateText}>
+                {calendarStatus === "checking"
+                  ? "Loading today's meetings..."
+                  : calendarStatus === "empty"
+                    ? "No meetings today."
+                    : calendarStatus === "failed"
+                      ? "Unable to load calendar events."
+                      : "Connect Google Calendar to name recordings from your meetings."}
+              </Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={styles.section}>
@@ -69,12 +174,15 @@ export function HomeScreen({ navigation }: Props) {
               {recordings.map((recording) => (
                 <Pressable
                   key={recording.id}
-                  style={styles.row}
+                  style={({ pressed }) => [
+                    styles.row,
+                    pressed ? styles.pressedRow : null
+                  ]}
                   onPress={() => navigation.navigate("RecordingDetail", recording)}
                 >
                   <View style={styles.rowText}>
-                    <Text style={styles.rowTitle}>{recording.title}</Text>
-                    <Text style={styles.meta}>{formatDate(recording.createdAt)}</Text>
+                    <Text numberOfLines={1} style={styles.rowTitle}>{recording.title}</Text>
+                    <Text style={styles.meta}>{formatRecordingDate(recording.createdAt)}</Text>
                     <Text style={styles.fileName}>{recording.fileName}</Text>
                   </View>
                   <Text style={styles.duration}>{formatMillis(recording.durationMillis)}</Text>
@@ -93,8 +201,12 @@ export function HomeScreen({ navigation }: Props) {
         </ScrollView>
       </View>
 
-      <View style={styles.recordDock}>
-        <PrimaryButton onPress={() => navigation.navigate("Recording")}>Record meeting</PrimaryButton>
+      <View pointerEvents="box-none" style={styles.recordDock}>
+        <RecordingActionButton
+          label="Record meeting"
+          mode="record"
+          onPress={() => navigation.navigate("Recording", { autoStart: true })}
+        />
       </View>
     </Screen>
   );
@@ -102,26 +214,86 @@ export function HomeScreen({ navigation }: Props) {
 
 const styles = StyleSheet.create({
   header: {
-    alignItems: "center",
+    alignItems: "flex-start",
     flexDirection: "row",
     justifyContent: "space-between",
-    marginBottom: theme.spacing.xl
+    marginBottom: theme.spacing.lg
+  },
+  headerText: {
+    flex: 1,
+    paddingRight: theme.spacing.md
+  },
+  settingsButton: {
+    marginTop: -3
   },
   title: {
     color: theme.colors.text,
-    fontSize: theme.typography.title.fontSize,
-    fontWeight: theme.typography.title.fontWeight
+    fontSize: 33,
+    fontWeight: theme.typography.title.fontWeight,
+    letterSpacing: 0,
+    lineHeight: 39
+  },
+  subtitle: {
+    color: theme.colors.textMuted,
+    fontSize: 14,
+    lineHeight: 20,
+    marginTop: theme.spacing.xs
   },
   section: {
     flex: 1
   },
+  meetingsSection: {
+    marginBottom: theme.spacing.xl
+  },
+  meetingsList: {
+    borderTopColor: theme.colors.divider,
+    borderTopWidth: StyleSheet.hairlineWidth
+  },
+  meetingRow: {
+    alignItems: "center",
+    borderBottomColor: theme.colors.divider,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    minHeight: 64,
+    paddingVertical: theme.spacing.md
+  },
+  pressedRow: {
+    opacity: 0.64
+  },
+  providerDot: {
+    backgroundColor: theme.colors.primary,
+    borderRadius: theme.radii.pill,
+    height: 7,
+    marginRight: theme.spacing.md,
+    opacity: 0.65,
+    width: 7
+  },
+  meetingText: {
+    flex: 1
+  },
+  meetingTitle: {
+    color: theme.colors.text,
+    fontSize: 18,
+    fontWeight: "700",
+    lineHeight: 24
+  },
+  meetingState: {
+    borderBottomColor: theme.colors.divider,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: theme.spacing.md
+  },
+  meetingStateText: {
+    color: theme.colors.textMuted,
+    fontSize: theme.typography.metadata.fontSize,
+    lineHeight: theme.typography.metadata.lineHeight
+  },
   listContent: {
-    paddingBottom: 112
+    paddingBottom: 132
   },
   emptyContent: {
     flexGrow: 1,
     justifyContent: "center",
-    paddingBottom: 112
+    paddingBottom: 132
   },
   list: {
     borderTopColor: theme.colors.divider,
@@ -133,8 +305,8 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     flexDirection: "row",
     justifyContent: "space-between",
-    minHeight: 86,
-    paddingVertical: theme.spacing.md
+    minHeight: 78,
+    paddingVertical: 14
   },
   rowText: {
     flex: 1,
@@ -142,9 +314,9 @@ const styles = StyleSheet.create({
   },
   rowTitle: {
     color: theme.colors.text,
-    fontSize: theme.typography.body.fontSize,
+    fontSize: 17,
     fontWeight: "700",
-    lineHeight: theme.typography.body.lineHeight
+    lineHeight: 23
   },
   meta: {
     color: theme.colors.textMuted,
@@ -154,13 +326,13 @@ const styles = StyleSheet.create({
   },
   fileName: {
     color: theme.colors.textSubtle,
-    fontSize: theme.typography.metadata.fontSize,
-    lineHeight: theme.typography.metadata.lineHeight,
-    marginTop: theme.spacing.xs
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 2
   },
   duration: {
     color: theme.colors.textMuted,
-    fontSize: theme.typography.metadata.fontSize,
+    fontSize: 14,
     fontWeight: "700"
   },
   error: {
@@ -170,7 +342,10 @@ const styles = StyleSheet.create({
     marginTop: theme.spacing.md
   },
   recordDock: {
-    paddingBottom: theme.spacing.sm,
-    paddingTop: theme.spacing.md
+    alignItems: "center",
+    bottom: theme.spacing.lg,
+    left: 0,
+    position: "absolute",
+    right: 0
   }
 });

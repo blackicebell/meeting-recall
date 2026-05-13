@@ -220,6 +220,10 @@ Turn it on in Settings to record meetings.
 - For MVP, recording may stop because true background recording is not currently supported
 - App handles background state gracefully
 - File is not corrupted
+- If recording is interrupted, the app attempts to stop and preserve the recording
+- User is taken to Save Recording when a recoverable recording file exists
+- Message is calm:
+“Recording was interrupted.”
 
 ---
 
@@ -267,9 +271,7 @@ Turn it on in Settings to record meetings.
 
 ## Expected Result
 - App includes clear copy such as:
-"Keep Meeting Recall open while recording."
-- Supporting copy explains:
-"Locking your screen or switching apps may stop the recording."
+"For best recording results, keep Meeting Recall open while recording."
 - Copy is calm, short, and visible before users accidentally lose recording time.
 
 ---
@@ -376,11 +378,15 @@ YYYY-MM-DD – Meeting Name.m4a
 2. Save
 3. Tap Open NotebookLM
 4. Confirm the app verifies the file exists
-5. Confirm NotebookLM opens immediately without a confirmation modal
-6. Upload file in NotebookLM
+5. Confirm Meeting Recall opens https://notebooklm.google.com directly
+6. Confirm Android opens the NotebookLM app if the OS supports that app link, or opens the browser otherwise
+7. Confirm NotebookLM opens immediately without a confirmation modal
+8. Upload file in NotebookLM
 
 ## Expected Result
-- NotebookLM opens
+- NotebookLM app opens only when the OS routes the NotebookLM URL to the installed app
+- NotebookLM website/browser fallback is acceptable
+- The button label is “Open NotebookLM,” not “Open NotebookLM app”
 - User understands what to do
 - Recording Detail shows exact filename
 - Recording Detail uses short guidance:
@@ -400,11 +406,15 @@ When NotebookLM opens, tap Add Source and choose this file.
 4. Open old recording
 5. Tap Open NotebookLM
 6. Confirm the app verifies the file exists
-7. Confirm NotebookLM opens immediately without a confirmation modal
-8. Upload file in NotebookLM
+7. Confirm Meeting Recall opens https://notebooklm.google.com directly
+8. Confirm Android opens the NotebookLM app if the OS supports that app link, or opens the browser otherwise
+9. Confirm NotebookLM opens immediately without a confirmation modal
+10. Upload file in NotebookLM
 
 ## Expected Result
 - Old recording is just as easy to use
+- NotebookLM app opening works for old recordings only if OS app-link routing supports it
+- Website/browser fallback works for old recordings
 - File is accessible
 - File name is recognizable
 - Recording Detail shows exact filename and Documents / Meeting Recall fallback
@@ -470,6 +480,27 @@ Recording file could not be found.
 
 ---
 
+# 6D. Unexpected Recording Stop Test
+
+## Steps
+1. Start recording
+2. Trigger an interruption if possible:
+   - incoming call
+   - screen lock
+   - app switch
+   - OS audio interruption
+3. Return to Meeting Recall
+
+## Expected Result
+- User sees calm interruption messaging if detectable:
+“Recording was interrupted.”
+- App attempts to preserve the recording
+- If a file exists, user can save it
+- If save preparation fails, app explains clearly without technical language
+- No silent failure occurs
+
+---
+
 # 14C. Share Content Type Test
 
 ## Steps
@@ -532,20 +563,30 @@ Unable to share recording.
 - Calendar connects successfully
 - Today’s meetings appear
 - App does not request unnecessary permissions
+- Access token is received before Calendar API fetch
+- No temporary Google Sign-In debug controls are visible
+- No Calendar Fetch Debug panel is visible on Home
+- If no events exist, Home shows:
+No meetings today.
 
 ---
 
 # 16. Calendar Recording Test
 
 ## Steps
-1. Tap a calendar event
-2. Record meeting
-3. Stop and save
+1. Connect Google Calendar
+2. Confirm Today’s Meetings appears on Home
+3. Tap a calendar event
+4. Record meeting
+5. Stop and save
 
 ## Expected Result
 - Recording title uses calendar event name
 - File name follows date-first format
 - Recording appears in Recent Recordings
+- Calendar meeting title remains editable before save
+- Final filename remains:
+YYYY-MM-DD – Meeting Name.m4a
 
 ---
 
@@ -559,6 +600,22 @@ Unable to share recording.
 ## Expected Result
 - App does not crash
 - Clear message appears
+- Message appears:
+Unable to load calendar events.
+- Manual recording still works
+
+---
+
+# 17A. No Meetings Today Test
+
+## Steps
+1. Connect Google Calendar using an account with no events today
+2. Return to Home
+
+## Expected Result
+- Today’s Meetings section remains calm
+- Message appears:
+No meetings today.
 - Manual recording still works
 
 ---
