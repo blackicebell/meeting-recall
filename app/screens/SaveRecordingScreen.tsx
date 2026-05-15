@@ -1,5 +1,5 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
 import { PrimaryButton, Screen, SecondaryButton } from "../../components/ui";
@@ -8,34 +8,59 @@ import {
   buildRecordingFileName,
   DEFAULT_RECORDING_TITLE,
   formatMillis,
+  getRecordingLocationLabel,
+  getStorageSetupCopy,
   loadStoredMeetingRecallFolderUri,
   saveRecordingToMeetingRecallFolder
 } from "../../lib/fileStorage";
+import { devLog } from "../../lib/devLog";
 import { addRecording } from "../../lib/recordingStore";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "SaveRecording">;
 
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
+type FolderStatus = "checking" | "ready" | "needsSelection" | "failed";
+
+function getFolderStatusCopy(status: FolderStatus) {
+  const storageCopy = getStorageSetupCopy();
+
+  if (status === "checking") {
+    return "Checking save location...";
+  }
+
+  if (status === "needsSelection") {
+    return storageCopy.button === "Choose Folder"
+      ? "You will choose your Meeting Recall folder when saving."
+      : "Recordings are saved inside Meeting Recall on this device.";
+  }
+
+  if (status === "failed") {
+    return "Unable to check save location. You can still try saving.";
+  }
+
+  return null;
 }
 
 export function SaveRecordingScreen({ navigation, route }: Props) {
+  const saveInProgressRef = useRef(false);
   const [title, setTitle] = useState(route.params.suggestedTitle ?? DEFAULT_RECORDING_TITLE);
   const [folderUri, setFolderUri] = useState<string | null>(null);
-  const [folderStatus, setFolderStatus] = useState("loading folder");
+  const [folderStatus, setFolderStatus] = useState<FolderStatus>("checking");
   const [saveStatus, setSaveStatus] = useState("not saved");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const fileName = useMemo(() => buildRecordingFileName(title), [title]);
+  const folderStatusCopy = getFolderStatusCopy(folderStatus);
+  const locationLabel = getRecordingLocationLabel();
 
   useEffect(() => {
     async function loadFolder() {
       try {
         const storedFolderUri = await loadStoredMeetingRecallFolderUri();
         setFolderUri(storedFolderUri);
-        setFolderStatus(storedFolderUri ? "Meeting Recall folder ready" : "choose folder on save");
+        setFolderStatus(storedFolderUri ? "ready" : "needsSelection");
       } catch (error) {
-        setFolderStatus(`folder load failed: ${getErrorMessage(error)}`);
+        devLog.warn("Unable to load Meeting Recall folder", error);
+        setFolderStatus("failed");
       }
     }
 
@@ -43,6 +68,12 @@ export function SaveRecordingScreen({ navigation, route }: Props) {
   }, []);
 
   async function handleSave() {
+    if (saveInProgressRef.current) {
+      return;
+    }
+
+    saveInProgressRef.current = true;
+
     try {
       setErrorMessage(null);
       setSaveStatus("saving");
@@ -57,8 +88,10 @@ export function SaveRecordingScreen({ navigation, route }: Props) {
       setSaveStatus("saved");
       navigation.replace("RecordingDetail", storedRecording);
     } catch (error) {
+      devLog.warn("Unable to save recording", error);
       setSaveStatus("failed");
-      setErrorMessage(getErrorMessage(error));
+      setErrorMessage("Recording could not be finalized.");
+      saveInProgressRef.current = false;
     }
   }
 
@@ -90,7 +123,7 @@ export function SaveRecordingScreen({ navigation, route }: Props) {
 
           <View style={styles.detailRow}>
             <Text style={styles.detailLabel}>Location</Text>
-            <Text style={styles.detailValue}>Meeting Recall folder</Text>
+            <Text style={styles.detailValue}>{locationLabel}</Text>
           </View>
 
           <View style={styles.detailRow}>
@@ -106,8 +139,8 @@ export function SaveRecordingScreen({ navigation, route }: Props) {
           <SecondaryButton onPress={() => navigation.navigate("Home")}>Cancel</SecondaryButton>
         </View>
 
-        {folderStatus !== "Meeting Recall folder ready" ? (
-          <Text style={styles.status}>{folderStatus}</Text>
+        {folderStatusCopy ? (
+          <Text style={styles.status}>{folderStatusCopy}</Text>
         ) : null}
         {saveStatus === "saved" ? (
           <Text style={styles.success}>Saved to Meeting Recall folder.</Text>

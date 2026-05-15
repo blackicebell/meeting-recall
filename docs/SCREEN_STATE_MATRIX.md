@@ -218,6 +218,7 @@ Display:
 - Waveform active
 - Stop available
 - Pause available
+- Screen wake lock active while status is recording
 
 ---
 
@@ -233,6 +234,7 @@ Display:
 - timer paused
 - visual distinction visible
 - Resume action available
+- screen wake lock released so normal device sleep behavior can resume
 
 ---
 
@@ -268,6 +270,7 @@ Recording was interrupted.
 ## App Backgrounded
 Handle gracefully per platform limitations.
 - true background recording is not supported for MVP
+- active recording uses keep-awake to reduce accidental screen-timeout interruptions
 - if app leaves active state while recording, attempt to stop and preserve the recording
 - on return, continue into Save Recording when possible
 
@@ -275,6 +278,7 @@ Handle gracefully per platform limitations.
 
 ## Screen Locked
 - treat as an interruption for MVP
+- normal screen timeout should be prevented while recording is active
 - attempt to preserve the recording if platform behavior allows
 - avoid promising background recording support
 

@@ -50,11 +50,9 @@ export function SettingsScreen({ navigation }: Props) {
       setCalendarConnection(connection);
       setCalendarStatus("Connected");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-
       devLog.warn("Unable to connect Google Calendar.", error);
 
-      setCalendarStatus(`Unable to connect Google Calendar. ${message}`);
+      setCalendarStatus("Unable to connect Google Calendar. Please try again.");
     } finally {
       setIsCalendarBusy(false);
     }
@@ -73,8 +71,8 @@ export function SettingsScreen({ navigation }: Props) {
       });
       setCalendarStatus("Not connected");
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      setCalendarStatus(`Unable to disconnect Google Calendar. ${message}`);
+      devLog.warn("Unable to disconnect Google Calendar.", error);
+      setCalendarStatus("Unable to disconnect Google Calendar. Please try again.");
     } finally {
       setIsCalendarBusy(false);
     }

@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useMemo, useState } from "react";
-import { Linking, StyleSheet, Text, View } from "react-native";
+import { Image, Linking, StyleSheet, Text, View } from "react-native";
 import {
   getRecordingPermissionsAsync,
   requestRecordingPermissionsAsync
@@ -8,12 +8,18 @@ import {
 
 import { PrimaryButton, Screen, SecondaryButton } from "../../components/ui";
 import { theme } from "../../constants/theme";
-import { chooseMeetingRecallFolder, loadStoredMeetingRecallFolderUri } from "../../lib/fileStorage";
+import {
+  chooseMeetingRecallFolder,
+  getStorageSetupCopy,
+  loadStoredMeetingRecallFolderUri
+} from "../../lib/fileStorage";
 import { loadOnboardingCompleted, saveOnboardingCompleted } from "../../lib/onboardingState";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Onboarding">;
 type SetupPhase = "slides" | "microphone" | "microphoneDenied" | "folder";
+
+const brandMark = require("../../assets/brand/logo-primary-transparent.png");
 
 const onboardingScreens = [
   {
@@ -36,27 +42,13 @@ function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
 }
 
-function RecallSignalMark() {
-  return (
-    <View
-      accessibilityElementsHidden
-      importantForAccessibility="no-hide-descendants"
-      style={styles.signalMark}
-    >
-      <View style={[styles.signalRay, styles.signalRayLeft]} />
-      <View style={[styles.signalRay, styles.signalRayCenter]} />
-      <View style={[styles.signalRay, styles.signalRayRight]} />
-      <View style={styles.signalDot} />
-    </View>
-  );
-}
-
 export function OnboardingScreen({ navigation }: Props) {
   const [phase, setPhase] = useState<SetupPhase>("slides");
   const [screenIndex, setScreenIndex] = useState(0);
   const [folderUri, setFolderUri] = useState<string | null>(null);
   const [statusMessage, setStatusMessage] = useState<string | null>(null);
   const currentScreen = onboardingScreens[screenIndex];
+  const storageCopy = getStorageSetupCopy();
   const progressText = useMemo(
     () => `${screenIndex + 1} of ${onboardingScreens.length}`,
     [screenIndex]
@@ -206,27 +198,27 @@ export function OnboardingScreen({ navigation }: Props) {
   }
 
   if (phase === "folder") {
+    const folderAction = folderUri ? continueWithStoredFolder : chooseFolder;
+
     return (
       <Screen scroll={false}>
         <View style={styles.container}>
           <View>
             <Text style={styles.kicker}>Storage</Text>
-            <Text style={styles.title}>Choose where recordings are saved</Text>
-            <Text style={styles.body}>
-              We recommend Documents - Meeting Recall so your files are easy to find when uploading to NotebookLM.
-            </Text>
-            {folderUri ? (
+            <Text style={styles.title}>{storageCopy.title}</Text>
+            <Text style={styles.body}>{storageCopy.body}</Text>
+            {folderUri && storageCopy.ready ? (
               <View style={styles.folderReady}>
-                <Text style={styles.folderReadyText}>Meeting Recall folder is ready.</Text>
+                <Text style={styles.folderReadyText}>{storageCopy.ready}</Text>
               </View>
             ) : null}
           </View>
 
           <View style={styles.actions}>
-            <PrimaryButton onPress={folderUri ? continueWithStoredFolder : chooseFolder}>
-              {folderUri ? "Continue" : "Choose Folder"}
+            <PrimaryButton onPress={folderAction}>
+              {folderUri ? "Continue" : storageCopy.button}
             </PrimaryButton>
-            {folderUri ? (
+            {folderUri && storageCopy.button === "Choose Folder" ? (
               <SecondaryButton onPress={chooseFolder}>Choose Different Folder</SecondaryButton>
             ) : null}
             {statusMessage ? <Text style={styles.error}>{statusMessage}</Text> : null}
@@ -240,9 +232,16 @@ export function OnboardingScreen({ navigation }: Props) {
     <Screen scroll={false}>
       <View style={styles.container}>
         <View>
-          <Text style={styles.brand}>Meeting Recall</Text>
+          <View style={styles.brandBlock}>
+            <Image
+              accessibilityIgnoresInvertColors
+              resizeMode="contain"
+              source={brandMark}
+              style={styles.brandMark}
+            />
+            <Text style={styles.brand}>Meeting Recall</Text>
+          </View>
           <Text style={styles.progress}>{progressText}</Text>
-          {screenIndex === 0 ? <RecallSignalMark /> : null}
           <Text style={styles.title}>{currentScreen.headline}</Text>
           <Text style={styles.body}>{currentScreen.subtext}</Text>
         </View>
@@ -261,11 +260,19 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: "space-between"
   },
+  brandBlock: {
+    alignItems: "flex-start",
+    marginBottom: theme.spacing["2xl"]
+  },
+  brandMark: {
+    height: 44,
+    marginBottom: theme.spacing.md,
+    width: 68
+  },
   brand: {
     color: theme.colors.text,
     fontSize: 22,
     fontWeight: "700",
-    marginBottom: theme.spacing["2xl"]
   },
   progress: {
     color: theme.colors.textMuted,
@@ -274,50 +281,6 @@ const styles = StyleSheet.create({
     letterSpacing: theme.typography.section.letterSpacing,
     marginBottom: theme.spacing.lg,
     textTransform: "uppercase"
-  },
-  signalMark: {
-    alignSelf: "flex-start",
-    height: 52,
-    marginBottom: theme.spacing.lg,
-    marginLeft: 1,
-    width: 62
-  },
-  signalDot: {
-    backgroundColor: theme.colors.recording,
-    borderRadius: 10,
-    bottom: 3,
-    height: 20,
-    left: 21,
-    position: "absolute",
-    shadowColor: theme.colors.recording,
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    width: 20
-  },
-  signalRay: {
-    backgroundColor: theme.colors.black,
-    borderRadius: theme.radii.pill,
-    height: 4,
-    opacity: 0.16,
-    position: "absolute",
-    width: 26
-  },
-  signalRayCenter: {
-    height: 26,
-    left: 29,
-    top: 0,
-    width: 4
-  },
-  signalRayLeft: {
-    left: 8,
-    top: 17,
-    transform: [{ rotate: "45deg" }]
-  },
-  signalRayRight: {
-    right: 8,
-    top: 17,
-    transform: [{ rotate: "-45deg" }]
   },
   kicker: {
     color: theme.colors.primary,

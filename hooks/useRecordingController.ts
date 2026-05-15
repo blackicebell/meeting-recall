@@ -8,16 +8,14 @@ import {
   useAudioRecorderState
 } from "expo-audio";
 
+import { devLog } from "../lib/devLog";
+
 export type RecordingStatus = "idle" | "preparing" | "recording" | "paused" | "stopped";
 
 export type StoppedRecording = {
   durationMillis: number;
   uri: string;
 };
-
-function getErrorMessage(error: unknown) {
-  return error instanceof Error ? error.message : String(error);
-}
 
 const RECORDING_OPTIONS = {
   ...RecordingPresets.HIGH_QUALITY,
@@ -37,7 +35,8 @@ export function useRecordingController() {
         const permission = await getRecordingPermissionsAsync();
         setPermissionStatus(permission.status);
       } catch (error) {
-        setErrorMessage(`Permission check failed: ${getErrorMessage(error)}`);
+        devLog.warn("Microphone permission check failed", error);
+        setErrorMessage("Unable to check microphone access. Please try again.");
       }
     }
 
@@ -80,8 +79,9 @@ export function useRecordingController() {
       recorder.record();
       setStatus("recording");
     } catch (error) {
+      devLog.warn("Unable to start recording", error);
       setStatus("idle");
-      setErrorMessage(`Unable to start recording: ${getErrorMessage(error)}`);
+      setErrorMessage("Unable to start recording. Please check microphone access and try again.");
     }
   }
 
@@ -91,7 +91,8 @@ export function useRecordingController() {
       recorder.pause();
       setStatus("paused");
     } catch (error) {
-      setErrorMessage(`Unable to pause recording: ${getErrorMessage(error)}`);
+      devLog.warn("Unable to pause recording", error);
+      setErrorMessage("Unable to pause recording. Please try again.");
     }
   }
 
@@ -101,7 +102,8 @@ export function useRecordingController() {
       recorder.record();
       setStatus("recording");
     } catch (error) {
-      setErrorMessage(`Unable to resume recording: ${getErrorMessage(error)}`);
+      devLog.warn("Unable to resume recording", error);
+      setErrorMessage("Unable to resume recording. Please try again.");
     }
   }
 
@@ -124,7 +126,8 @@ export function useRecordingController() {
         uri
       };
     } catch (error) {
-      setErrorMessage(`Unable to stop recording: ${getErrorMessage(error)}`);
+      devLog.warn("Unable to stop recording", error);
+      setErrorMessage("Unable to stop recording. Please try again.");
       return null;
     }
   }

@@ -37,6 +37,9 @@ Allow users to reliably record meetings with minimal friction.
 
 ### Stability
 - Recording does not pretend to support background recording for MVP
+- Screen stays awake for the full recording session
+- Screen stays awake while the recording is paused
+- Screen sleep behavior is restored after final stop, save/discard, or Recording screen cleanup
 - Recording interruption behavior is handled gracefully
 - App backgrounding/screen lock attempts to preserve the recording when possible
 - Incoming call/audio interruptions are communicated clearly when detectable
@@ -49,6 +52,8 @@ Allow users to reliably record meetings with minimal friction.
 ### Playback
 - Recording plays correctly
 - Pause/play works
+- Screen stays awake during active playback
+- Screen sleep behavior is restored after playback stops or Recording Detail closes
 - Scrubbing works
 - Rewind/forward works
 - Playback state updates correctly
@@ -214,7 +219,7 @@ Make playback and NotebookLM handoff effortless.
 Recording file could not be found.
 - If native share fails, user sees:
 Unable to share recording.
-- Rename works
+- Post-save rename is not exposed unless a safe native file operation is validated
 - Delete works
 - Delete requires confirmation before removing anything
 - Delete removes local metadata so the recording disappears from Recent Recordings
@@ -236,17 +241,18 @@ Make recordings extremely easy to upload into NotebookLM.
 
 ## Done Checklist
 - Open NotebookLM CTA works
-- Open NotebookLM prepares the file before opening NotebookLM
-- Recording file existence is verified before helper opens
+- Open NotebookLM validates the file before opening NotebookLM
 - Recording file size is verified as greater than 0 when available
 - Missing files block NotebookLM opening and show:
 Recording file could not be found.
 - Browser fallback works if app unavailable
-- Helper/interstitial screen appears
+- Open NotebookLM opens directly without a normal confirmation modal
+- Recording Detail is the instructional source of truth
+- Modals or alerts are reserved for missing file, empty file, open failure, or browser fallback
 - Recording easy to find in Recents if platform behavior allows it
-- Helper provides fallback guidance when Recents does not show the file
-- Helper shows exact filename
-- Helper tells users to browse to Documents / Meeting Recall
+- Recording Detail provides fallback guidance when Recents does not show the file
+- Recording Detail shows exact filename
+- Recording Detail tells users to browse to Documents / Meeting Recall
 - Recording accessible from file picker
 - File naming easy to identify
 - Flow works for both new and old recordings
@@ -417,6 +423,54 @@ App ready for public release.
 - TestFlight/internal testing complete
 - Android testing complete
 - iOS testing complete
+
+---
+
+# 15. Internal Beta Readiness
+
+## Feature Goal
+Make the app safe and clear enough for real external testers.
+
+---
+
+## Done Checklist
+- No production-facing debug panels are visible
+- No spike buttons, test-file actions, or raw diagnostic output are visible
+- Core flows remain available:
+  - record
+  - save
+  - playback
+  - open NotebookLM
+  - share
+  - delete
+  - Google Calendar Today’s Meetings
+- Onboarding explains the app without claiming built-in AI
+- Empty states exist for no meetings and no recordings
+- Calendar failures do not block manual recording
+- Missing-file states block unsafe NotebookLM/share actions
+- User-facing errors avoid stack traces and technical details
+- Dev-only logging stays behind `__DEV__`
+- Screenshot/sample data mode stays gated behind `EXPO_PUBLIC_SCREENSHOT_MODE`
+
+---
+
+## Tester Observation Goals
+- Do testers understand that Meeting Recall records, while NotebookLM creates insights?
+- Do testers trust that their recording saved?
+- Can testers find the file in Documents / Meeting Recall?
+- Do testers understand what to do after tapping Open NotebookLM?
+- Does the floating record CTA feel obvious and thumb-friendly?
+- Do any screens feel unfinished, crowded, or confusing?
+
+---
+
+## Known MVP Limitations
+- Recording works best while Meeting Recall stays open and active.
+- True background recording is not supported until native background behavior is validated.
+- Post-save file rename is deferred; the correct filename should be created during initial save.
+- NotebookLM app opening depends on Android/iOS URL routing. Browser fallback is acceptable.
+- File picker Recents visibility is not guaranteed. Users should browse to Documents / Meeting Recall.
+- iOS file and background behavior still require real-device validation before public launch.
 
 ---
 

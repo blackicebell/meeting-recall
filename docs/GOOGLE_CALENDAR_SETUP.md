@@ -64,7 +64,11 @@ com.meetingrecall.app
 
 iOS client ID:
 
-Still needed.
+246712386244-j4mt2dd5ja7n241gi09c3acoo62vshca.apps.googleusercontent.com
+
+iOS URL scheme / reversed client ID:
+
+com.googleusercontent.apps.246712386244-j4mt2dd5ja7n241gi09c3acoo62vshca
 
 iOS bundle ID:
 
@@ -75,7 +79,8 @@ Google Sign-In is configured for:
 - calendar.events.readonly scope
 - Android package com.meetingrecall.app
 - webClientId from the Web OAuth client
-- placeholder iOS client ID until Google Cloud Console setup is complete
+- iosClientId from the iOS OAuth client
+- iosUrlScheme from the reversed iOS client ID in the Expo Google Sign-In config plugin
 
 Previous invalid config removed:
 
@@ -86,6 +91,8 @@ Important:
 OAuth client IDs are public identifiers, not private secrets. Do not add client secrets to the app.
 
 A new Expo development build is required after native Google Sign-In config changes.
+
+A new iOS TestFlight build is required for the iOS URL scheme change to take effect.
 
 ---
 

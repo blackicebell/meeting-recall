@@ -33,19 +33,41 @@ Avoid:
 
 ---
 
-# Current Placeholder Assets
+# Current Integrated Assets
 
-The project currently includes placeholder assets so Expo has valid app store configuration paths.
+The project includes the provided Meeting Recall source logo assets and generated PNG exports for Expo configuration.
 
-These are not final artwork.
+Source assets:
+- /assets/brand/logo-primary.svg
+- /assets/brand/logo-mark.svg
+- /assets/brand/logo-primary.png
+- /assets/brand/logo-mark.png
+- /assets/brand/logo-primary-transparent.png
 
-Current placeholders:
-- /assets/icons/app-icon-placeholder.png
-- /assets/icons/adaptive-icon-foreground-placeholder.png
-- /assets/splash/splash-placeholder.png
-- /assets/brand/brand-mark-placeholder.png
+Integrated app assets:
+- /assets/icons/app-icon.png
+- /assets/icons/adaptive-icon-foreground.png
+- /assets/splash/splash.png
 
-Replace before public submission.
+Placeholder image files have been removed from the production asset folders.
+
+---
+
+# Branding Usage Rules
+
+Use the provided logo artwork without distortion.
+
+Rules:
+- maintain aspect ratio
+- avoid effects, filters, or added gradients
+- keep in-app logo usage compact
+- preserve generous spacing around the mark
+- avoid placing the logo inside busy UI regions
+- do not use the logo as a decorative pattern
+
+Use the white-background-friendly transparent mark export for in-app branding, app icon, adaptive icon, and splash exports.
+
+On light UI screens, use the logo sparingly and keep typography as the primary hierarchy.
 
 ---
 
@@ -64,7 +86,7 @@ Recommended file:
 - /assets/icons/app-icon.png
 
 Current config points to:
-- /assets/icons/app-icon-placeholder.png
+- /assets/icons/app-icon.png
 
 ---
 
@@ -83,7 +105,7 @@ Recommended file:
 - /assets/icons/adaptive-icon-foreground.png
 
 Current config points to:
-- /assets/icons/adaptive-icon-foreground-placeholder.png
+- /assets/icons/adaptive-icon-foreground.png
 
 Current adaptive background:
 - #ffffff
@@ -96,8 +118,8 @@ Keep the mark inside the adaptive icon safe zone so Android launcher masks do no
 # Splash Screen Requirements
 
 Recommended splash image:
-- centered brand mark or compact lockup
-- transparent or white background
+- centered brand mark
+- white or near-white background
 - simple and quiet
 - readable on small devices
 
@@ -105,7 +127,7 @@ Recommended file:
 - /assets/splash/splash.png
 
 Current config points to:
-- /assets/splash/splash-placeholder.png
+- /assets/splash/splash.png
 
 Current splash background:
 - #ffffff
@@ -119,9 +141,9 @@ Final production exports should include:
 - 1024 x 1024 app icon PNG
 - 1024 x 1024 Android adaptive foreground PNG with transparency
 - splash PNG, at least 1242 x 1242 or larger source
-- brand mark SVG
+- brand mark SVG: /assets/brand/logo-mark.svg
 - brand mark PNG
-- wordmark SVG if used
+- wordmark / primary logo SVG: /assets/brand/logo-primary.svg
 - social preview image
 
 ---
@@ -135,17 +157,16 @@ Expo config should reference:
 - splash image
 - splash background color
 
-Current placeholder paths are valid for development builds but should be renamed/replaced when final artwork is ready.
+Current config paths now use the integrated Meeting Recall brand exports.
 
 ---
 
 # Still Needed Before Store Submission
 
-- final app icon
-- final Android adaptive icon foreground
-- final splash screen artwork
-- final primary logo / brand mark SVG
-- final wordmark if used
+- final review of app icon readability on real devices
+- final review of Android adaptive icon safe-zone cropping
+- final review of splash image scale on real devices
+- final PNG exports derived from /assets/brand/logo-primary.svg and /assets/brand/logo-mark.svg
 - social preview image
 - favicon for website
 

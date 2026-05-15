@@ -1,10 +1,15 @@
 import { useCallback, useState } from "react";
 import { useFocusEffect } from "@react-navigation/native";
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { RecordingActionButton } from "../../components/recording/RecordingActionButton";
 import { EmptyState, IconButton, Screen, SectionHeader } from "../../components/ui";
+import {
+  isScreenshotMode,
+  screenshotMeetings,
+  screenshotRecordings
+} from "../../constants/screenshotData";
 import { theme } from "../../constants/theme";
 import { devLog } from "../../lib/devLog";
 import {
@@ -17,6 +22,8 @@ import type { MeetingEvent } from "../../types/calendar";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Home">;
+
+const brandMark = require("../../assets/brand/logo-primary-transparent.png");
 
 function formatRecordingDate(isoDate: string) {
   return new Intl.DateTimeFormat("en-US", {
@@ -58,6 +65,12 @@ export function HomeScreen({ navigation }: Props) {
       let isActive = true;
 
       async function refreshRecordings() {
+        if (isScreenshotMode) {
+          setRecordings(screenshotRecordings);
+          setLoadStatus("loaded");
+          return;
+        }
+
         try {
           setLoadStatus("loading");
           const savedRecordings = await loadRecordings();
@@ -74,6 +87,12 @@ export function HomeScreen({ navigation }: Props) {
       }
 
       async function refreshTodayMeetings() {
+        if (isScreenshotMode) {
+          setTodayMeetings(screenshotMeetings);
+          setCalendarStatus("connected");
+          return;
+        }
+
         try {
           setCalendarStatus("checking");
           const result = await fetchTodayMeetingsFromConnectedProviders();
@@ -119,7 +138,15 @@ export function HomeScreen({ navigation }: Props) {
     <Screen scroll={false}>
       <View style={styles.header}>
         <View style={styles.headerText}>
-          <Text style={styles.title}>Meeting Recall</Text>
+          <View style={styles.titleRow}>
+            <Image
+              accessibilityIgnoresInvertColors
+              resizeMode="contain"
+              source={brandMark}
+              style={styles.headerMark}
+            />
+            <Text style={styles.title}>Meeting Recall</Text>
+          </View>
           <Text style={styles.subtitle}>Record, save, and open in NotebookLM.</Text>
         </View>
         <View style={styles.settingsButton}>
@@ -222,6 +249,15 @@ const styles = StyleSheet.create({
   headerText: {
     flex: 1,
     paddingRight: theme.spacing.md
+  },
+  titleRow: {
+    alignItems: "center",
+    flexDirection: "row",
+    gap: theme.spacing.sm
+  },
+  headerMark: {
+    height: 30,
+    width: 46
   },
   settingsButton: {
     marginTop: -3

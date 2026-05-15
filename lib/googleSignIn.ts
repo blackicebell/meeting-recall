@@ -1,4 +1,5 @@
 import type { ConfigureParams } from "@react-native-google-signin/google-signin";
+import { Platform } from "react-native";
 
 import { GOOGLE_OAUTH_CONFIG, GOOGLE_SIGN_IN_SCOPES } from "../constants/google";
 
@@ -55,9 +56,11 @@ export async function connectGoogleCalendarAccount() {
   try {
     const { GoogleSignin } = await import("@react-native-google-signin/google-signin");
 
-    await GoogleSignin.hasPlayServices({
-      showPlayServicesUpdateDialog: true
-    });
+    if (Platform.OS === "android") {
+      await GoogleSignin.hasPlayServices({
+        showPlayServicesUpdateDialog: true
+      });
+    }
 
     const signInResponse = await GoogleSignin.signIn();
 

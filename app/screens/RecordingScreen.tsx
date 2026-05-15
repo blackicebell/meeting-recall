@@ -1,10 +1,12 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 import { useEffect, useRef, useState } from "react";
 import { Animated, AppState, Easing, StyleSheet, Text, View } from "react-native";
 
 import { RecordingActionButton } from "../../components/recording/RecordingActionButton";
 import { IconButton, Screen, SecondaryButton } from "../../components/ui";
 import { theme } from "../../constants/theme";
+import { devLog } from "../../lib/devLog";
 import { formatMillis } from "../../lib/fileStorage";
 import type { RootStackParamList } from "../../types/navigation";
 import { useRecordingController } from "../../hooks/useRecordingController";
@@ -12,6 +14,7 @@ import { useRecordingController } from "../../hooks/useRecordingController";
 type Props = NativeStackScreenProps<RootStackParamList, "Recording">;
 
 const WAVEFORM_BAR_COUNT = 31;
+const RECORDING_KEEP_AWAKE_TAG = "meeting-recall-active-recording";
 
 function clamp(value: number, min: number, max: number) {
   return Math.min(Math.max(value, min), max);
@@ -59,16 +62,74 @@ export function RecordingScreen({ navigation, route }: Props) {
   const recordingStatusRef = useRef(recording.status);
   const stopRecordingRef = useRef(recording.stop);
   const stoppingForInterruption = useRef(false);
+  const keepAwakeRequestId = useRef(0);
+  const keepAwakeHeldRef = useRef(false);
+  const isMounted = useRef(true);
   const [interruptionMessage, setInterruptionMessage] = useState<string | null>(null);
+  const [keepAwakeActive, setKeepAwakeActive] = useState(false);
+  const [keepAwakeError, setKeepAwakeError] = useState<string | null>(null);
   const waveformBars = useRef(
     Array.from({ length: WAVEFORM_BAR_COUNT }, () => new Animated.Value(0.2))
   ).current;
   const waveformPhase = useRef(0);
 
   useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (keepAwakeHeldRef.current) {
+        keepAwakeHeldRef.current = false;
+        deactivateKeepAwake(RECORDING_KEEP_AWAKE_TAG).catch((error) => {
+          devLog.warn("Unable to release recording wake lock on unmount", error);
+        });
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     recordingStatusRef.current = recording.status;
     stopRecordingRef.current = recording.stop;
   }, [recording.status, recording.stop]);
+
+  useEffect(() => {
+    const requestId = keepAwakeRequestId.current + 1;
+    keepAwakeRequestId.current = requestId;
+
+    async function syncKeepAwake() {
+      const shouldKeepAwake =
+        recording.status === "preparing" ||
+        recording.status === "recording" ||
+        recording.status === "paused";
+
+      try {
+        if (shouldKeepAwake) {
+          await activateKeepAwakeAsync(RECORDING_KEEP_AWAKE_TAG);
+          keepAwakeHeldRef.current = true;
+          if (isMounted.current && keepAwakeRequestId.current === requestId) {
+            setKeepAwakeActive(true);
+            setKeepAwakeError(null);
+          }
+          return;
+        }
+
+        if (keepAwakeHeldRef.current) {
+          await deactivateKeepAwake(RECORDING_KEEP_AWAKE_TAG);
+          keepAwakeHeldRef.current = false;
+        }
+        if (isMounted.current && keepAwakeRequestId.current === requestId) {
+          setKeepAwakeActive(false);
+          setKeepAwakeError(null);
+        }
+      } catch (error) {
+        devLog.warn("Unable to update recording wake lock", error);
+        if (isMounted.current && keepAwakeRequestId.current === requestId) {
+          setKeepAwakeActive(keepAwakeHeldRef.current);
+          setKeepAwakeError("Keep awake failed");
+        }
+      }
+    }
+
+    syncKeepAwake();
+  }, [recording.status]);
 
   useEffect(() => {
     if (!route.params?.autoStart || autoStartAttempted.current) {
@@ -218,6 +279,14 @@ export function RecordingScreen({ navigation, route }: Props) {
         ) : (
           <Text style={styles.helper}>For best recording results, keep Meeting Recall open while recording.</Text>
         )}
+
+        {__DEV__ ? (
+          <Text style={styles.debug}>
+            Recording session: {canStop || recording.status === "preparing" ? "active" : "inactive"}{"\n"}
+            Keep awake: {keepAwakeActive ? "active" : "inactive"}
+            {keepAwakeError ? `\n${keepAwakeError}` : ""}
+          </Text>
+        ) : null}
       </View>
 
       <View style={styles.actions}>
@@ -334,6 +403,13 @@ const styles = StyleSheet.create({
     fontSize: theme.typography.metadata.fontSize,
     fontWeight: "700",
     marginTop: theme.spacing.xl,
+    textAlign: "center"
+  },
+  debug: {
+    color: theme.colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: theme.spacing.md,
     textAlign: "center"
   },
   actions: {

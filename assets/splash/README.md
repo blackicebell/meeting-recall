@@ -2,7 +2,7 @@
 
 This folder holds splash screen artwork.
 
-Current file is a placeholder:
-- splash-placeholder.png
+Current file:
+- `splash.png`: centered Meeting Recall mark on a white background.
 
-Replace it with final production splash artwork before store submission.
+Before store submission, verify the splash scale on real iOS and Android devices.

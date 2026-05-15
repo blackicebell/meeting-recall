@@ -1,6 +1,5 @@
-import * as FileSystem from "expo-file-system/legacy";
-
 import type { CalendarConnection } from "../types/calendar";
+import { deleteJson, loadJsonWithLegacyFallback, saveJson } from "./appStorage";
 
 const CALENDAR_CONNECTION_FILE = "meeting-recall-calendar-connection.json";
 
@@ -11,24 +10,11 @@ const emptyConnection: CalendarConnection = {
   provider: "google"
 };
 
-function getCalendarConnectionUri() {
-  if (!FileSystem.documentDirectory) {
-    throw new Error("App storage is unavailable.");
-  }
-
-  return `${FileSystem.documentDirectory}${CALENDAR_CONNECTION_FILE}`;
-}
-
 export async function loadCalendarConnection(): Promise<CalendarConnection> {
-  const connectionUri = getCalendarConnectionUri();
-  const fileInfo = await FileSystem.getInfoAsync(connectionUri);
-
-  if (!fileInfo.exists) {
-    return emptyConnection;
-  }
-
-  const rawConnection = await FileSystem.readAsStringAsync(connectionUri);
-  const parsedConnection = JSON.parse(rawConnection) as Partial<CalendarConnection>;
+  const parsedConnection = await loadJsonWithLegacyFallback<Partial<CalendarConnection>>(
+    CALENDAR_CONNECTION_FILE,
+    emptyConnection
+  );
 
   return {
     connected: parsedConnection.connected === true,
@@ -46,14 +32,11 @@ export async function saveCalendarConnection(email: string | null) {
     provider: "google"
   };
 
-  await FileSystem.writeAsStringAsync(
-    getCalendarConnectionUri(),
-    JSON.stringify(connection, null, 2)
-  );
+  await saveJson(CALENDAR_CONNECTION_FILE, connection);
 
   return connection;
 }
 
 export async function clearCalendarConnection() {
-  await FileSystem.deleteAsync(getCalendarConnectionUri(), { idempotent: true });
+  await deleteJson(CALENDAR_CONNECTION_FILE);
 }

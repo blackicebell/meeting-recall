@@ -77,11 +77,38 @@ Users must be able to reliably record meetings without worrying about:
 
 ---
 
+# Playback Expectations
+
+Saved recordings should remain comfortable to listen to without the phone sleeping mid-playback.
+
+While playback is actively running, the app should hold a screen wake lock so normal screen timeout does not interrupt listening.
+
+Playback wake-lock behavior:
+- enable keep-awake when playback starts
+- keep keep-awake active while playback is playing
+- release keep-awake when playback stops
+- release keep-awake when leaving the Recording Detail screen
+- do not keep the screen awake on idle detail screens
+
+---
+
 # Recording Persistence
 
 Recording works best while Meeting Recall remains active.
 
 True background recording is not part of the current MVP unless validated later with native support.
+
+While a recording session is in progress, the app should hold a screen wake lock so normal screen timeout does not interrupt the recording.
+
+Wake-lock behavior:
+- enable keep-awake immediately when recording starts/prepares
+- keep keep-awake active while recording is active
+- keep keep-awake active while the recording is paused, because the session is still in progress
+- release keep-awake only after final stop, save/discard, or Recording screen cleanup
+- avoid status-transition cleanup races that deactivate the wake lock after activation
+- show dev-only wake-lock status while validating the behavior
+
+This reduces accidental interruptions from screen timeout, but it is not the same as true background recording.
 
 When the app is minimized, locked, or interrupted during recording, the app should:
 - detect the interruption when possible
@@ -144,6 +171,16 @@ Examples:
 - iOS Files app
 - Android Documents/Files
 
+Platform-specific behavior:
+
+- Android uses Storage Access Framework and asks the user to choose a visible Meeting Recall folder.
+- iOS does not use Storage Access Framework because it is Android-only.
+- iOS saves recordings inside Meeting Recall app document storage.
+- iOS saves new recordings directly in the app document root to avoid a nested folder inside the visible Meeting Recall app location.
+- App metadata should be stored separately from user-visible audio files.
+- iOS enables document sharing with UIFileSharingEnabled and LSSupportsOpeningDocumentsInPlace.
+- iOS users should still use Share for the most reliable NotebookLM handoff when file browsing is limited by sandboxing.
+
 ---
 
 # File Naming Rules
@@ -167,11 +204,21 @@ The preferred production save flow is:
 3. Sanitize the title.
 4. Create the final filename:
 YYYY-MM-DD – Meeting Name.m4a
-5. Copy/write the audio into Documents / Meeting Recall using that final filename.
-6. Verify the final file exists.
-7. Verify file size is greater than 0.
-8. Save app metadata pointing to the final public file URI.
-9. Delete the temporary file if safe.
+5. Wait for the temporary recording file to finish finalizing.
+6. Verify the temporary file exists, is readable, and has file size greater than 0.
+7. Verify the temporary recording can initialize for playback when feasible.
+8. Copy/write the audio into the platform recording location using that final filename.
+9. Verify the final public file exists.
+10. Verify the final public file size is greater than 0.
+11. Verify the final public file can initialize for playback when feasible.
+12. Save app metadata pointing to the final public file URI only after validation passes.
+13. Delete the temporary file if safe.
+
+If any finalization, export, readability, file-size, or playback-initialization validation fails, the app must not mark the recording as saved.
+
+Preferred user-facing failure copy:
+
+Recording could not be finalized.
 
 Direct rename is unreliable on the tested Android setup, so the app should avoid needing to rename public files during the normal save flow.
 
@@ -184,7 +231,13 @@ Implementation preference:
 
 The production requirement is:
 
-The file created in the Meeting Recall folder must have the correct name users expect.
+The file created in the Meeting Recall folder or app recording storage must have the correct name users expect.
+
+The final file must also be a valid audio file that can:
+- play back inside Meeting Recall
+- play back from device storage where supported
+- upload into NotebookLM
+- share successfully as an .m4a audio file
 
 ---
 

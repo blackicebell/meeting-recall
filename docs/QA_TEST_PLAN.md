@@ -54,12 +54,12 @@ Recent Recordings flow is now testable:
 1. Recording reliability
 2. File saving and access
 3. Old recording NotebookLM handoff
-4. Rename behavior
-5. Playback
-6. Google Calendar naming
-7. Permissions
-8. Error states
-9. Visual polish
+4. Playback
+5. Google Calendar naming
+6. Permissions
+7. Error states
+8. Visual polish
+9. Internal beta usability
 
 ---
 
@@ -96,7 +96,8 @@ Record meetings. Recall everything.
 - Screen 3 explains local Meeting Recall folder storage
 - Buttons are visible
 - Permission copy is clear
-- Folder setup recommends Documents / Meeting Recall
+- Folder setup recommends Documents / Meeting Recall on Android
+- iOS storage setup says recordings are saved inside Meeting Recall on this device
 - User lands on Home screen
 - On next app launch, user goes directly to Home
 
@@ -158,14 +159,19 @@ Turn it on in Settings to record meetings.
 ## Steps
 1. Complete onboarding
 2. Grant microphone permission
-3. Tap Choose Folder
-4. Select Documents / Meeting Recall or create/select an equivalent visible folder
-5. Continue to Home
-6. Close and reopen app
+3. On Android, tap Choose Folder
+4. On Android, select Documents / Meeting Recall or create/select an equivalent visible folder
+5. On iOS, confirm the storage screen does not show Choose Folder
+6. On iOS, continue after reading:
+Recordings are saved inside Meeting Recall on this device.
+7. Continue to Home
+8. Close and reopen app
 
 ## Expected Result
-- Folder picker appears
-- Selected folder permission is persisted where supported
+- Android folder picker appears
+- Android selected folder permission is persisted where supported
+- iOS does not call Android Storage Access Framework
+- iOS skips Android-style folder picking
 - User lands on Home after folder setup
 - Returning user goes directly to Home
 
@@ -231,15 +237,25 @@ Turn it on in Settings to record meetings.
 
 ## Steps
 1. Start recording
-2. Lock the phone screen
-3. Wait 1-2 minutes
-4. Unlock the phone
-5. Return to Meeting Recall
-6. Stop and save if recording is still active
+2. Leave the device untouched longer than the normal screen timeout
+3. Confirm the screen stays awake
+4. Stop and save the recording
+5. Start another recording
+6. Manually lock the phone screen
+7. Unlock the phone
+8. Return to Meeting Recall
+9. Stop and save if recording is still active
 
 ## Expected Result
-- For MVP, user-facing copy clearly warns that recordings require the app to stay open.
-- If recording stops, the app explains what happened calmly.
+- During active recording, normal screen timeout does not turn the screen off.
+- In development builds, debug text shows:
+  - Recording session: active
+  - Keep awake: active
+- When recording is paused, the screen still stays awake because the session is not finished.
+- When recording is finally stopped, saved, discarded, or the Recording screen cleans up, normal screen sleep behavior is restored.
+- In development builds, Keep awake changes back to inactive after the recording session ends.
+- Manually locking the screen is still treated as an interruption for MVP.
+- If recording stops after manual lock, the app explains what happened calmly.
 - App does not crash.
 - Any partial recording is preserved if possible.
 
@@ -290,9 +306,13 @@ YYYY-MM-DD – Meeting Name.m4a
 - Final filename is clearly visible
 - "Saves to Meeting Recall folder" is visible as a small location row or metadata chip
 - App creates the final public file only after Save Recording is confirmed
-- Final file is created in Documents / Meeting Recall
+- App waits for the temporary recording file to finalize before export
+- App verifies the temporary recording exists, is readable, and has file size greater than 0
+- Android final file is created in Documents / Meeting Recall
+- iOS final file is created inside Meeting Recall app document storage
 - Final file exists
 - Final file size is greater than 0
+- Final file can initialize for playback before the app marks save successful where feasible
 - App metadata points to the final public file URI
 - Save does not trigger low-memory warnings
 - Save does not use JS/base64 copy for meeting-length recordings
@@ -302,19 +322,51 @@ YYYY-MM-DD – Meeting Name.m4a
 
 ---
 
+# 7A. Recording Finalization Failure Test
+
+## Steps
+1. Start a short recording
+2. Stop recording
+3. Save immediately after the Save Recording screen appears
+4. Repeat with a longer recording
+5. If possible, simulate a failed or interrupted export
+
+## Expected Result
+- App does not mark a recording saved until export validation passes.
+- App validates source file size before export.
+- App validates exported file size after export.
+- App validates playback initialization when feasible.
+- If validation fails, app shows:
+Recording could not be finalized.
+- Failed recordings are not added to Recent Recordings.
+- Failed empty or invalid exported files are cleaned up where possible.
+- User can retry saving from the Save Recording screen.
+
+---
+
 # 8. File Location Test
 
 ## Steps
 1. Save a recording
-2. Open device file browser
-3. Find Documents / Meeting Recall folder on Android
-4. Locate recording
+2. On Android, open device file browser
+3. On Android, find Documents / Meeting Recall folder
+4. On Android, locate recording
+5. On iOS, open the recording detail screen and use Share to send the recording to another app
 
 ## Expected Result
 - Documents / Meeting Recall folder exists on Android
-- Recording is visible
+- Android recording is visible
 - File name is readable
-- File is accessible outside the app
+- Android file is accessible outside the app
+- Android recording plays externally if the device file browser/player supports .m4a playback
+- Android recording can be selected for NotebookLM upload
+- iOS recording saves inside Meeting Recall app document storage
+- iOS Share flow can send or upload the `.m4a` file
+- iOS document sharing is enabled, so check whether Meeting Recall appears as a Files/Finder location
+- New iOS recordings appear directly inside the visible Meeting Recall app folder if Files/Finder exposes it
+- Existing saved recordings from the older nested Meeting Recall folder migrate up one level when possible
+- Metadata JSON files are moved away from the user-facing recording list after migration
+- iOS Files/Finder visibility is helpful, but Share remains the required reliable path
 
 ---
 
@@ -371,6 +423,27 @@ YYYY-MM-DD – Meeting Name.m4a
 
 ---
 
+# 11A. Playback Screen Timeout Test
+
+## Steps
+1. Open a saved recording
+2. Tap Play
+3. Leave the phone untouched longer than the normal screen timeout
+4. Confirm the screen stays awake during playback
+5. Stop playback
+6. Leave the phone untouched again
+
+## Expected Result
+- During playback, normal screen timeout does not turn the screen off.
+- In development builds, debug text shows:
+Playback keep awake: active
+- After playback stops, normal screen sleep behavior returns.
+- In development builds, debug text changes back to:
+Playback keep awake: inactive
+- Leaving Recording Detail releases the playback wake lock.
+
+---
+
 # 12. New Recording NotebookLM Flow
 
 ## Steps
@@ -391,8 +464,9 @@ YYYY-MM-DD – Meeting Name.m4a
 - Recording Detail shows exact filename
 - Recording Detail uses short guidance:
 When NotebookLM opens, tap Add Source and choose this file.
-- Recording Detail tells user the file is in Documents / Meeting Recall
-- Recording is easy to find by browsing to Documents / Meeting Recall
+- On Android, Recording Detail tells user the file is in Documents / Meeting Recall
+- On Android, recording is easy to find by browsing to Documents / Meeting Recall
+- On iOS, Recording Detail points users toward Share if NotebookLM cannot find the file
 - Upload works
 
 ---
@@ -417,7 +491,7 @@ When NotebookLM opens, tap Add Source and choose this file.
 - Website/browser fallback works for old recordings
 - File is accessible
 - File name is recognizable
-- Recording Detail shows exact filename and Documents / Meeting Recall fallback
+- Recording Detail shows exact filename and platform-appropriate storage guidance
 - User does not need to search extensively if Recents fails
 
 ---
@@ -443,18 +517,19 @@ Recording file could not be found.
 # 13A. NotebookLM Recents Fallback Test
 
 ## Steps
-1. Save a recording to Documents / Meeting Recall
+1. Save a recording to Documents / Meeting Recall on Android
 2. Tap Open NotebookLM
 3. Attempt upload from NotebookLM
 4. Check whether file appears in Recents
-5. If it does not appear, browse to Documents / Meeting Recall
+5. On Android, if it does not appear, browse to Documents / Meeting Recall
 6. Select the exact filename shown in the helper
 
 ## Expected Result
 - App does not promise Recents visibility
 - User has exact filename
 - User has clear folder fallback
-- Upload succeeds from Documents / Meeting Recall
+- Upload succeeds from Documents / Meeting Recall on Android
+- On iOS, Share can send the recording when direct file browsing is limited
 
 ---
 
@@ -566,6 +641,17 @@ Unable to share recording.
 - Access token is received before Calendar API fetch
 - No temporary Google Sign-In debug controls are visible
 - No Calendar Fetch Debug panel is visible on Home
+
+## iOS OAuth Configuration Checks
+- Install a new TestFlight build after adding the iOS Google Sign-In URL scheme.
+- Confirm iOS bundle identifier is com.meetingrecall.app.
+- Confirm Google Sign-In opens the native Google account flow or browser-based account flow without crashing.
+- Confirm returning from Google Sign-In returns to Meeting Recall through:
+com.googleusercontent.apps.246712386244-j4mt2dd5ja7n241gi09c3acoo62vshca
+- Confirm Calendar access uses:
+https://www.googleapis.com/auth/calendar.events.readonly
+- Confirm Today’s Meetings loads after sign-in.
+- If sign-in fails, verify the iOS OAuth client in Google Cloud uses bundle ID com.meetingrecall.app.
 - If no events exist, Home shows:
 No meetings today.
 
@@ -661,7 +747,8 @@ This removes the recording from Meeting Recall. If possible, the audio file will
 - Open NotebookLM is visible as the primary full-width CTA
 - Share is visible near Open NotebookLM
 - Exact filename is visible
-- Save location remains Documents / Meeting Recall
+- Save location remains Documents / Meeting Recall on Android
+- Save location is Meeting Recall on this device on iOS
 - NotebookLM guidance appears as one short line on Recording Detail
 - Open NotebookLM opens directly after file validation without a confirmation modal
 - Trash-icon delete access is visible
@@ -821,13 +908,71 @@ then the UX needs improvement.
 
 ---
 
+# 23. Internal Beta Readiness Test
+
+## Steps
+1. Install the latest internal build on a real device.
+2. Complete onboarding from a fresh install.
+3. Grant microphone access.
+4. On Android, choose Documents / Meeting Recall as the save folder.
+5. On iOS, confirm there is no folder picker.
+6. Connect Google Calendar if available.
+7. Create a short manual recording from the floating record button.
+8. Save the recording with the suggested filename.
+9. Open the saved recording from Recent Recordings.
+10. Play the recording.
+11. Tap Open NotebookLM and confirm the destination opens.
+12. Share the recording to at least one target.
+13. Delete the recording and confirm it disappears from Home.
+
+## Expected Result
+- No debug panels, spike buttons, raw API output, or test-only controls are visible.
+- Onboarding feels complete and calm.
+- Home shows Today’s Meetings, Recent Recordings, and the floating record CTA only.
+- No Meetings and No Recordings states feel intentional.
+- Errors use plain-language recovery copy.
+- Core actions do not require scrolling on typical phone sizes.
+- Manual recording remains available if Calendar is disconnected, empty, or failed.
+- The tester can complete the core workflow without explanation.
+
+---
+
+# 24. Internal Beta Tester Observation Goals
+
+Observe whether testers:
+- understand that Meeting Recall records and NotebookLM creates insights
+- trust that the recording saved correctly
+- can locate Documents / Meeting Recall on Android without coaching
+- can use Share on iOS without coaching
+- know which file to upload
+- notice the keep-app-open guidance before leaving the app
+- find Open NotebookLM, Share, and Delete in the expected places
+- feel confused by any copy, icon, screen, or transition
+
+---
+
+# Known MVP Limitations for Internal Beta
+
+These limitations should be communicated to testers before they begin:
+
+- Recording works best while Meeting Recall stays open and active.
+- True background recording is not supported yet.
+- Screen lock or app switching may interrupt recording.
+- Post-save file rename is deferred; the expected filename is created during initial save.
+- NotebookLM may open in the browser instead of the installed app.
+- File picker Recents visibility is not guaranteed, so Android testers should browse to Documents / Meeting Recall.
+- iOS testers should use Share when file browsing is limited.
+- iOS behavior still needs real-device validation before public launch.
+
+---
+
 # Launch Blockers
 
 The app should not launch if:
 
 - Recordings fail or corrupt
 - Files cannot be found outside app
-- Rename does not update actual file
+- Initial save does not create the expected visible filename
 - Old recordings cannot be uploaded easily
 - NotebookLM handoff confuses users
 - Permissions cause dead ends

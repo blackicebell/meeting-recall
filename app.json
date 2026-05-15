@@ -6,9 +6,9 @@
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "meetingrecall",
-    "icon": "./assets/icons/app-icon-placeholder.png",
+    "icon": "./assets/icons/app-icon.png",
     "splash": {
-      "image": "./assets/splash/splash-placeholder.png",
+      "image": "./assets/splash/splash.png",
       "backgroundColor": "#ffffff",
       "resizeMode": "contain"
     },
@@ -16,10 +16,14 @@
       "**/*"
     ],
     "ios": {
+      "buildNumber": "2",
       "bundleIdentifier": "com.meetingrecall.app",
       "supportsTablet": false,
       "infoPlist": {
-        "NSMicrophoneUsageDescription": "Microphone access is needed to record your meetings."
+        "NSMicrophoneUsageDescription": "Microphone access is needed to record your meetings.",
+        "ITSAppUsesNonExemptEncryption": false,
+        "UIFileSharingEnabled": true,
+        "LSSupportsOpeningDocumentsInPlace": true
       }
     },
     "android": {
@@ -27,10 +31,11 @@
         "RECORD_AUDIO"
       ],
       "adaptiveIcon": {
-        "foregroundImage": "./assets/icons/adaptive-icon-foreground-placeholder.png",
-        "backgroundColor": "#ffffff"
+        "foregroundImage": "./assets/icons/adaptive-icon-foreground.png",
+        "backgroundColor": "#202020"
       },
-      "package": "com.meetingrecall.app"
+      "package": "com.meetingrecall.app",
+      "versionCode": 1
     },
     "extra": {
       "eas": {
@@ -41,7 +46,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.YOUR_IOS_CLIENT_ID"
+          "iosUrlScheme": "com.googleusercontent.apps.246712386244-j4mt2dd5ja7n241gi09c3acoo62vshca"
         }
       ]
     ]

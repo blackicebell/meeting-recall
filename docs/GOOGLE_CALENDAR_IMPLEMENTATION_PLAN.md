@@ -42,11 +42,13 @@ Meeting Recall should not become a scheduling app.
 - Android OAuth client ID:
   - added in constants/google.ts
 - iOS OAuth client ID:
-  - still needed
+  - 246712386244-j4mt2dd5ja7n241gi09c3acoo62vshca.apps.googleusercontent.com
+- iOS URL scheme:
+  - com.googleusercontent.apps.246712386244-j4mt2dd5ja7n241gi09c3acoo62vshca
 - Google Sign-In runtime configuration:
   - configured with calendar.events.readonly scope
   - webClientId is configured
-  - iOS client ID is ignored until a real value replaces the placeholder
+  - iOS client ID is configured for iOS builds
 - Settings Calendar UI:
   - Connect button triggers Google Sign-In
   - Connected account email is shown when available
@@ -172,9 +174,10 @@ Required:
 - iOS OAuth client ID
 - reversed iOS client ID as the iOS URL scheme in the config plugin
 
-Current gap:
+Current iOS config:
 
-app.json does not define ios.bundleIdentifier yet. Add it before implementing Calendar.
+- app.json defines ios.bundleIdentifier as com.meetingrecall.app.
+- app.json includes the Google Sign-In config plugin with the real reversed iOS client ID as iosUrlScheme.
 
 ### Calendar Scope
 
@@ -311,9 +314,9 @@ Required:
 - App scheme / redirect handling
 - iOS OAuth client ID
 
-Current gap:
+Current status:
 
-ios.bundleIdentifier is not defined yet.
+ios.bundleIdentifier is defined as com.meetingrecall.app.
 
 ### Calendar Scope
 
@@ -371,9 +374,9 @@ Current app.json preparation:
   - com.meetingrecall.app
 - Keep android.package as:
   - com.meetingrecall.app
-- @react-native-google-signin/google-signin config plugin added.
-- iOS URL scheme currently uses a placeholder and must be replaced with the reversed iOS client ID from Google Cloud Console.
-- constants/google.ts contains the Android OAuth client ID and placeholder iOS/web client IDs.
+- @react-native-google-signin/google-signin native dependency added.
+- iOS URL scheme is configured through the @react-native-google-signin/google-signin Expo config plugin.
+- constants/google.ts contains the Android OAuth client ID, iOS OAuth client ID, iOS URL scheme, and Web OAuth client ID.
 - lib/googleSignIn.ts configures Google Sign-In with:
   - calendar.events.readonly scope
   - iOS client ID when available
@@ -381,7 +384,7 @@ Current app.json preparation:
 
 Important:
 
-Do not treat the placeholder OAuth values as working credentials.
+Do not add OAuth client secrets to the app. OAuth client IDs are public identifiers.
 
 ## Google Cloud Console
 
@@ -463,7 +466,7 @@ Only keep today's fetched meetings in memory unless caching is needed for percei
 # Implementation Order
 
 1. Confirm the Android OAuth client has package com.meetingrecall.app and the correct development SHA-1.
-2. Replace placeholder iOS OAuth client ID and iOS URL scheme after Google Cloud Console setup.
+2. Replace placeholder iOS OAuth client ID and iOS URL scheme after Google Cloud Console setup. Completed.
 3. Add/confirm Google Cloud project setup.
 4. Build new Android development build.
 5. Build new iOS development build when ready to test iPhone.
@@ -543,7 +546,8 @@ Remaining setup gaps:
 
 - The Android dev build must include @react-native-google-signin/google-signin.
 - Android OAuth client must match package com.meetingrecall.app and the signing SHA-1 used by the installed development build.
-- iOS client ID and iOS URL scheme are still placeholders.
+- iOS client ID is configured in app code.
+- iOS URL scheme is configured in app.json with the real reversed iOS client ID.
 - Calendar event fetching is implemented and should be tested on real Android with a connected account.
 - Exact Calendar fetch failure is pending the next device test.
 
@@ -561,9 +565,13 @@ Different signing keys can require different SHA-1 fingerprints:
 - production upload key
 - Google Play app signing key
 
-## iOS Identifier Gap
+## iOS Identifier Status
 
-iOS bundle identifier is not defined yet. Calendar work should not start until this is set.
+iOS bundle identifier is defined as:
+
+com.meetingrecall.app
+
+The iOS Google OAuth client and reversed client ID URL scheme are now configured. A new iOS build is required before testing this on TestFlight.
 
 ## Token Freshness
 

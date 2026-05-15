@@ -87,6 +87,50 @@ Required sizes prepared.
 
 ---
 
+## Screenshot-Ready App States
+
+Prepared primary capture states:
+- Home
+- Recording
+- Save Recording
+- Recording Detail
+- Onboarding
+
+Screenshot sample data can be enabled with:
+- EXPO_PUBLIC_SCREENSHOT_MODE=1
+
+Sample meetings:
+- Weekly Team Sync
+- Client Strategy Call
+- UX Review
+
+Sample recordings:
+- Weekly Team Sync
+- Product Standup
+- Client Strategy Call
+
+Screenshot mode is for capture builds only and should not be enabled for production release builds.
+
+---
+
+## Screenshot QA Checklist
+
+Before capturing final screenshots, verify:
+- no debug panels are visible
+- no placeholder asset files are referenced
+- no raw API output is visible
+- no buttons are clipped
+- no text overlaps or truncates awkwardly
+- primary CTAs are visible without scrolling
+- Home has realistic meetings and recordings
+- Recording screen clearly shows active recording state
+- Save Recording shows a realistic title, filename, duration, and save location
+- Recording Detail shows exact filename, Documents -> Meeting Recall, Open NotebookLM, Share, playback, and delete access
+- Onboarding uses real branding with premium spacing
+- status bar and navigation area do not cover content
+
+---
+
 # Screenshot Messaging Checklist
 
 Screenshots should clearly communicate:
@@ -232,8 +276,12 @@ If analytics are added:
 ## Verify
 - Bundle ID finalized
 - iOS bundle ID is com.meetingrecall.app
+- iOS build number is incremented for each upload
+- Production iOS EAS build completes without Metro
+- Production iOS build does not show dev menu
 - iOS Google OAuth client created
 - Google Sign-In iOS URL scheme configured from Google Cloud Console
+- No placeholder Google Sign-In URL schemes are present in the uploaded binary
 - App name finalized
 - Screenshots uploaded
 - Description uploaded
@@ -262,6 +310,10 @@ If analytics are added:
 ## Verify
 - Package name finalized
 - Android package name is com.meetingrecall.app
+- Android versionCode is incremented for each upload
+- Production Android EAS build uses App Bundle output
+- Production Android build completes without Metro
+- Production Android build does not show dev menu
 - Android Google OAuth client created
 - Google Calendar API enabled in Google Cloud Console
 - OAuth consent screen configured
@@ -371,6 +423,48 @@ Before launch:
 - Test permissions
 - Test offline recording
 - Test app restart persistence
+
+---
+
+# 16. Release Build Verification
+
+## EAS Profiles
+- Development profile exists for native debugging
+- Preview profile exists for internal tester builds
+- Production profile exists for store submission
+
+---
+
+## Production Build Requirements
+- Android production build uses `app-bundle`
+- Preview Android build uses APK for easier tester distribution
+- Production builds do not require Metro
+- Production builds do not show Expo dev menu
+- Production builds use real app icon
+- Production builds use real splash screen
+- Production builds use Android adaptive icon
+
+---
+
+## Versioning Checklist
+- `expo.version` reviewed before each public release
+- Android `versionCode` reviewed before each Google Play upload
+- iOS `buildNumber` reviewed before each App Store upload
+- EAS production auto-increment behavior confirmed before upload
+- Final build number recorded in release notes
+
+---
+
+## Store Submission Readiness
+- Android `.aab` uploaded to Play Console internal testing before public release
+- iOS build uploaded to TestFlight before public release
+- Google OAuth production SHA-1 added before Android release
+- iOS Google OAuth client and URL scheme configured before iOS release
+- Privacy Policy URL live
+- Terms URL live
+- Support URL live
+- Store screenshots match current app UI
+- App Privacy / Data Safety answers match actual local-first behavior
 
 ---
 

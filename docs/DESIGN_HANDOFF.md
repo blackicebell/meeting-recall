@@ -562,6 +562,41 @@ The interface should always feel intentionally minimal.
 
 ---
 
+# Brand Usage
+
+Meeting Recall uses the provided logo assets without redesign or added effects.
+
+Integrated assets:
+- /assets/brand/logo-primary.svg
+- /assets/brand/logo-mark.svg
+- /assets/icons/app-icon.png
+- /assets/icons/adaptive-icon-foreground.png
+- /assets/splash/splash.png
+
+Splash behavior:
+- centered brand mark
+- white or near-white background
+- no gradients
+- no busy startup composition
+
+Onboarding behavior:
+- use the real mark compactly near the top
+- keep the logo left-aligned with the main copy
+- preserve generous spacing around the mark
+- avoid oversized logo usage
+
+Home header behavior:
+- branding may use a small mark beside the title
+- typography remains the primary hierarchy
+- do not let the logo compete with Today’s Meetings or the Record CTA
+
+Adaptive icon considerations:
+- keep the mark inside Android safe margins
+- use a white background so the mark feels native to the light app aesthetic
+- verify masked icon crops before store submission
+
+---
+
 # Final Design Success Definition
 
 The design succeeds when a non-technical user can:

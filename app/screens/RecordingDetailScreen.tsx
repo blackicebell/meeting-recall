@@ -5,11 +5,13 @@ import {
   Animated,
   Easing,
   Linking,
+  Platform,
   StyleSheet,
   Text,
   View
 } from "react-native";
 import * as FileSystem from "expo-file-system/legacy";
+import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
 import { IconButton, PrimaryButton, Screen, SecondaryButton } from "../../components/ui";
 import { theme } from "../../constants/theme";
@@ -19,6 +21,7 @@ import {
   deleteRecordingFileIfPossible,
   ensureM4aFileName,
   formatMillis,
+  getRecordingLocationLabel,
   prepareRecordingForShare
 } from "../../lib/fileStorage";
 import { removeRecording } from "../../lib/recordingStore";
@@ -26,6 +29,7 @@ import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "RecordingDetail">;
 const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
+const PLAYBACK_KEEP_AWAKE_TAG = "meeting-recall-active-playback";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -34,12 +38,70 @@ function getErrorMessage(error: unknown) {
 export function RecordingDetailScreen({ navigation, route }: Props) {
   const recording = route.params;
   const playback = useAudioPlayback(recording.fileUri);
+  const recordingLocation = getRecordingLocationLabel();
+  const notebookHint = Platform.OS === "ios"
+    ? "On iOS, use Share if NotebookLM cannot find this recording."
+    : "When NotebookLM opens, tap Add Source and choose this file.";
   const [actionError, setActionError] = useState<string | null>(null);
+  const [keepAwakeActive, setKeepAwakeActive] = useState(false);
+  const [keepAwakeError, setKeepAwakeError] = useState<string | null>(null);
+  const keepAwakeRequestId = useRef(0);
+  const keepAwakeHeldRef = useRef(false);
+  const isMounted = useRef(true);
   const waveProgress = useRef(new Animated.Value(0)).current;
   const waveformBars = useMemo(
     () => Array.from({ length: 34 }, (_, index) => 0.35 + ((index * 9) % 10) / 16),
     []
   );
+
+  useEffect(() => {
+    return () => {
+      isMounted.current = false;
+      if (keepAwakeHeldRef.current) {
+        keepAwakeHeldRef.current = false;
+        deactivateKeepAwake(PLAYBACK_KEEP_AWAKE_TAG).catch((error) => {
+          devLog.warn("Unable to release playback wake lock on unmount", error);
+        });
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    const requestId = keepAwakeRequestId.current + 1;
+    keepAwakeRequestId.current = requestId;
+
+    async function syncPlaybackKeepAwake() {
+      try {
+        if (playback.isPlaying) {
+          await activateKeepAwakeAsync(PLAYBACK_KEEP_AWAKE_TAG);
+          keepAwakeHeldRef.current = true;
+          if (isMounted.current && keepAwakeRequestId.current === requestId) {
+            setKeepAwakeActive(true);
+            setKeepAwakeError(null);
+          }
+          return;
+        }
+
+        if (keepAwakeHeldRef.current) {
+          await deactivateKeepAwake(PLAYBACK_KEEP_AWAKE_TAG);
+          keepAwakeHeldRef.current = false;
+        }
+
+        if (isMounted.current && keepAwakeRequestId.current === requestId) {
+          setKeepAwakeActive(false);
+          setKeepAwakeError(null);
+        }
+      } catch (error) {
+        devLog.warn("Unable to update playback wake lock", error);
+        if (isMounted.current && keepAwakeRequestId.current === requestId) {
+          setKeepAwakeActive(keepAwakeHeldRef.current);
+          setKeepAwakeError("Playback keep awake failed");
+        }
+      }
+    }
+
+    syncPlaybackKeepAwake();
+  }, [playback.isPlaying]);
 
   useEffect(() => {
     if (!playback.isPlaying) {
@@ -322,7 +384,7 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
 
       <View style={styles.filePanel}>
         <Text numberOfLines={1} style={styles.fileValue}>{recording.fileName}</Text>
-        <Text style={styles.locationValue}>{"Documents \u2192 Meeting Recall"}</Text>
+        <Text style={styles.locationValue}>{recordingLocation}</Text>
       </View>
 
       <View style={styles.waveform}>
@@ -358,12 +420,18 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
 
       <View style={styles.actions}>
         <Text style={styles.notebookHint}>
-          When NotebookLM opens, tap Add Source and choose this file.
+          {notebookHint}
         </Text>
         <PrimaryButton onPress={openNotebookLm}>{"Open NotebookLM \u2197"}</PrimaryButton>
         <SecondaryButton onPress={shareRecording}>Share</SecondaryButton>
         {actionError ? (
           <Text style={styles.error}>{actionError}</Text>
+        ) : null}
+        {__DEV__ ? (
+          <Text style={styles.debug}>
+            Playback keep awake: {keepAwakeActive ? "active" : "inactive"}
+            {keepAwakeError ? `\n${keepAwakeError}` : ""}
+          </Text>
         ) : null}
       </View>
     </Screen>
@@ -462,6 +530,12 @@ const styles = StyleSheet.create({
     color: theme.colors.recording,
     fontSize: theme.typography.metadata.fontSize,
     fontWeight: "700",
+    textAlign: "center"
+  },
+  debug: {
+    color: theme.colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 16,
     textAlign: "center"
   }
 });
