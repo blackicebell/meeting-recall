@@ -164,12 +164,12 @@ export function OnboardingScreen({ navigation }: Props) {
         <View style={styles.container}>
           <View>
             <Text style={styles.kicker}>Microphone</Text>
-            <Text style={styles.title}>Enable microphone access</Text>
-            <Text style={styles.body}>Meeting Recall needs microphone access to record your meetings.</Text>
+            <Text style={styles.title}>Microphone access</Text>
+            <Text style={styles.body}>Meeting Recall uses the microphone to record your meetings.</Text>
           </View>
 
           <View style={styles.actions}>
-            <PrimaryButton onPress={requestMicrophoneAccess}>Allow Microphone Access</PrimaryButton>
+            <PrimaryButton onPress={requestMicrophoneAccess}>Continue</PrimaryButton>
             {statusMessage ? <Text style={styles.error}>{statusMessage}</Text> : null}
           </View>
         </View>

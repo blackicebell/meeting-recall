@@ -5,13 +5,19 @@ import { theme } from "../../constants/theme";
 
 type SecondaryButtonProps = {
   children: ReactNode;
+  disabled?: boolean;
   onPress: () => void;
 };
 
-export function SecondaryButton({ children, onPress }: SecondaryButtonProps) {
+export function SecondaryButton({ children, disabled = false, onPress }: SecondaryButtonProps) {
   return (
-    <Pressable accessibilityRole="button" onPress={onPress} style={styles.button}>
-      <Text style={styles.label}>{children}</Text>
+    <Pressable
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.button, disabled ? styles.buttonDisabled : null]}
+    >
+      <Text style={[styles.label, disabled ? styles.labelDisabled : null]}>{children}</Text>
     </Pressable>
   );
 }
@@ -26,9 +32,15 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     paddingHorizontal: theme.spacing.lg
   },
+  buttonDisabled: {
+    opacity: 0.55
+  },
   label: {
     color: theme.colors.text,
     fontSize: theme.typography.label.fontSize,
     fontWeight: theme.typography.label.fontWeight
+  },
+  labelDisabled: {
+    color: theme.colors.textMuted
   }
 });

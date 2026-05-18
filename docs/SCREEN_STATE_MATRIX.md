@@ -96,11 +96,11 @@ Your recordings stay with you
 ## Microphone Explainer
 - appears after onboarding screens
 - title:
-Enable microphone access
+Microphone access
 - body:
-Meeting Recall needs microphone access to record your meetings.
+Meeting Recall uses the microphone to record your meetings.
 - CTA:
-Allow Microphone Access
+Continue
 
 ---
 

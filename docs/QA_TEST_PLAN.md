@@ -124,7 +124,7 @@ Record meetings. Recall everything.
 1. Open app fresh
 2. Complete or skip onboarding screens
 3. Review microphone explainer
-4. Tap Allow Microphone Access
+4. Tap Continue
 5. Grant microphone permission
 
 ## Expected Result
@@ -140,7 +140,7 @@ Record meetings. Recall everything.
 ## Steps
 1. Open app fresh
 2. Complete or skip onboarding screens
-3. Tap Allow Microphone Access
+3. Tap Continue
 4. Deny microphone permission
 
 ## Expected Result
@@ -449,24 +449,27 @@ Playback keep awake: inactive
 ## Steps
 1. Record meeting
 2. Save
-3. Tap Open NotebookLM
-4. Confirm the app verifies the file exists
-5. Confirm Meeting Recall opens https://notebooklm.google.com directly
-6. Confirm Android opens the NotebookLM app if the OS supports that app link, or opens the browser otherwise
-7. Confirm NotebookLM opens immediately without a confirmation modal
-8. Upload file in NotebookLM
+3. Confirm Recording Detail first shows:
+Preparing recording...
+4. Confirm Open NotebookLM, Share, and playback are disabled while preparation is running
+5. Confirm status changes to:
+Ready for NotebookLM
+6. Tap Open NotebookLM
+7. Confirm Meeting Recall opens https://notebooklm.google.com directly
+8. Confirm Android opens the NotebookLM app if the OS supports that app link, or opens the browser otherwise
+9. Confirm NotebookLM opens immediately without a confirmation modal
+10. Upload file in NotebookLM
 
 ## Expected Result
+- Handoff actions do not become active until file readiness validation passes
 - NotebookLM app opens only when the OS routes the NotebookLM URL to the installed app
 - NotebookLM website/browser fallback is acceptable
 - The button label is “Open NotebookLM,” not “Open NotebookLM app”
 - User understands what to do
 - Recording Detail shows exact filename
-- Recording Detail uses short guidance:
-When NotebookLM opens, tap Add Source and choose this file.
-- On Android, Recording Detail tells user the file is in Documents / Meeting Recall
+- Recording Detail does not show normal-state fallback copy that makes the handoff feel unreliable
+- On Android, Recording Detail shows the Documents / Meeting Recall location
 - On Android, recording is easy to find by browsing to Documents / Meeting Recall
-- On iOS, Recording Detail points users toward Share if NotebookLM cannot find the file
 - Upload works
 
 ---
@@ -478,8 +481,9 @@ When NotebookLM opens, tap Add Source and choose this file.
 2. Close app
 3. Return later
 4. Open old recording
-5. Tap Open NotebookLM
-6. Confirm the app verifies the file exists
+5. Confirm Recording Detail runs the same readiness check
+6. Tap Open NotebookLM after the status says:
+Ready for NotebookLM
 7. Confirm Meeting Recall opens https://notebooklm.google.com directly
 8. Confirm Android opens the NotebookLM app if the OS supports that app link, or opens the browser otherwise
 9. Confirm NotebookLM opens immediately without a confirmation modal
@@ -487,6 +491,7 @@ When NotebookLM opens, tap Add Source and choose this file.
 
 ## Expected Result
 - Old recording is just as easy to use
+- Old recordings must pass readiness validation before NotebookLM/share/playback actions become active
 - NotebookLM app opening works for old recordings only if OS app-link routing supports it
 - Website/browser fallback works for old recordings
 - File is accessible
@@ -503,12 +508,13 @@ When NotebookLM opens, tap Add Source and choose this file.
 2. Delete the audio file from device storage if possible
 3. Return to the app
 4. Open the recording detail screen
-5. Tap Open NotebookLM
+5. Confirm readiness fails before Open NotebookLM becomes active
 
 ## Expected Result
 - App does not open NotebookLM
 - Message appears:
-Recording file could not be found.
+Recording could not be prepared.
+- Try Again appears
 - User remains in the app
 - App does not crash
 

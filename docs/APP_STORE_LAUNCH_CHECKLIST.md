@@ -290,6 +290,8 @@ If analytics are added:
 - Sign-in requirements compliant
 - Calendar permissions explained
 - Microphone permissions explained
+- Pre-permission screens use neutral CTA wording such as "Continue" instead of "Allow" or "Grant"
+- Native permission prompts remain the place where users explicitly allow or deny access
 
 ---
 

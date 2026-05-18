@@ -207,6 +207,13 @@ Make playback and NotebookLM handoff effortless.
 - Playback controls work
 - Waveform scrubber works
 - Open NotebookLM button visible
+- Recording Detail checks file readiness before enabling Open NotebookLM, Share, or playback
+- While readiness is checking, status shows:
+Preparing recording...
+- When readiness passes, status shows:
+Ready for NotebookLM
+- If readiness fails, status shows:
+Recording could not be prepared.
 - Share action works
 - Share verifies the recording file exists before opening the native share sheet
 - Share verifies file size is greater than 0 when available
@@ -241,7 +248,8 @@ Make recordings extremely easy to upload into NotebookLM.
 
 ## Done Checklist
 - Open NotebookLM CTA works
-- Open NotebookLM validates the file before opening NotebookLM
+- Open NotebookLM is disabled until the saved file passes readiness validation
+- Open NotebookLM validates the file again before opening NotebookLM
 - Recording file size is verified as greater than 0 when available
 - Missing files block NotebookLM opening and show:
 Recording file could not be found.
@@ -250,7 +258,7 @@ Recording file could not be found.
 - Recording Detail is the instructional source of truth
 - Modals or alerts are reserved for missing file, empty file, open failure, or browser fallback
 - Recording easy to find in Recents if platform behavior allows it
-- Recording Detail provides fallback guidance when Recents does not show the file
+- Recording Detail avoids normal-state fallback copy that makes the handoff feel unreliable
 - Recording Detail shows exact filename
 - Recording Detail tells users to browse to Documents / Meeting Recall
 - Recording accessible from file picker
@@ -289,7 +297,9 @@ Handle permissions gracefully and clearly.
 - Request appears correctly
 - Permission explainer appears before OS prompt
 - Explainer copy says:
-Meeting Recall needs microphone access to record your meetings.
+Meeting Recall uses the microphone to record your meetings.
+- Pre-permission CTA uses neutral wording such as:
+Continue
 - Denied state handled
 - Permanently denied state handled
 - Denied recovery includes:

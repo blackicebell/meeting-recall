@@ -157,13 +157,13 @@ Permission language should feel calm and non-technical.
 ## Explainer Copy
 
 Headline:
-Enable microphone access
+Microphone access
 
 Subtext:
-Meeting Recall needs microphone access to record your meetings.
+Meeting Recall uses the microphone to record your meetings.
 
 CTA:
-Allow Microphone Access
+Continue
 
 ## Denied Recovery
 

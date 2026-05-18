@@ -239,6 +239,22 @@ The final file must also be a valid audio file that can:
 - upload into NotebookLM
 - share successfully as an .m4a audio file
 
+After save, Recording Detail must run a file-readiness check before enabling handoff actions.
+
+Readiness check:
+- verify the saved file exists
+- verify file size is greater than 0
+- verify the filename ends in .m4a
+- verify the file can initialize for playback when feasible
+- keep Open NotebookLM and Share disabled until validation passes
+
+Recording Detail states:
+- Preparing recording...
+- Ready for NotebookLM
+- Recording could not be prepared.
+
+Do not add fallback helper copy during the normal ready state. The app should feel confident when the file is valid and only explain problems when validation fails.
+
 ---
 
 # File Naming Goals
@@ -312,9 +328,8 @@ Open NotebookLM
 Expected behavior:
 1. Ensure recording exists
 2. Ensure recording accessible
-3. Prepare file visibility if necessary
-4. Open helper/interstitial
-5. Open NotebookLM app or browser
+3. Ensure recording readiness has passed on Recording Detail
+4. Open NotebookLM app or browser
 
 ---
 

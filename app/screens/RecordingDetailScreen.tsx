@@ -10,7 +10,6 @@ import {
   Text,
   View
 } from "react-native";
-import * as FileSystem from "expo-file-system/legacy";
 import { activateKeepAwakeAsync, deactivateKeepAwake } from "expo-keep-awake";
 
 import { IconButton, PrimaryButton, Screen, SecondaryButton } from "../../components/ui";
@@ -19,10 +18,10 @@ import { useAudioPlayback } from "../../hooks/useAudioPlayback";
 import { devLog } from "../../lib/devLog";
 import {
   deleteRecordingFileIfPossible,
-  ensureM4aFileName,
   formatMillis,
   getRecordingLocationLabel,
-  prepareRecordingForShare
+  prepareRecordingForShare,
+  validateSavedRecordingForHandoff
 } from "../../lib/fileStorage";
 import { removeRecording } from "../../lib/recordingStore";
 import type { RootStackParamList } from "../../types/navigation";
@@ -30,6 +29,8 @@ import type { RootStackParamList } from "../../types/navigation";
 type Props = NativeStackScreenProps<RootStackParamList, "RecordingDetail">;
 const NOTEBOOKLM_URL = "https://notebooklm.google.com/";
 const PLAYBACK_KEEP_AWAKE_TAG = "meeting-recall-active-playback";
+
+type ReadinessState = "checking" | "ready" | "failed";
 
 function getErrorMessage(error: unknown) {
   return error instanceof Error ? error.message : String(error);
@@ -39,15 +40,15 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
   const recording = route.params;
   const playback = useAudioPlayback(recording.fileUri);
   const recordingLocation = getRecordingLocationLabel();
-  const notebookHint = Platform.OS === "ios"
-    ? "On iOS, use Share if NotebookLM cannot find this recording."
-    : "When NotebookLM opens, tap Add Source and choose this file.";
   const [actionError, setActionError] = useState<string | null>(null);
+  const [readinessState, setReadinessState] = useState<ReadinessState>("checking");
+  const [readinessDebug, setReadinessDebug] = useState<string | null>(null);
   const [keepAwakeActive, setKeepAwakeActive] = useState(false);
   const [keepAwakeError, setKeepAwakeError] = useState<string | null>(null);
   const keepAwakeRequestId = useRef(0);
   const keepAwakeHeldRef = useRef(false);
   const isMounted = useRef(true);
+  const readinessRequestId = useRef(0);
   const waveProgress = useRef(new Animated.Value(0)).current;
   const waveformBars = useMemo(
     () => Array.from({ length: 34 }, (_, index) => 0.35 + ((index * 9) % 10) / 16),
@@ -65,6 +66,54 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
       }
     };
   }, []);
+
+  async function validateRecordingReadiness() {
+    const requestId = readinessRequestId.current + 1;
+    readinessRequestId.current = requestId;
+
+    setActionError(null);
+    setReadinessState("checking");
+    setReadinessDebug(null);
+
+    try {
+      const result = await validateSavedRecordingForHandoff({
+        fileName: recording.fileName,
+        fileUri: recording.fileUri
+      });
+
+      if (!isMounted.current || readinessRequestId.current !== requestId) {
+        return false;
+      }
+
+      setReadinessState("ready");
+      setReadinessDebug(
+        `File ready: ${result.fileSize} bytes, ${result.mimeType}, playback validated`
+      );
+      return true;
+    } catch (error) {
+      const message = getErrorMessage(error);
+
+      devLog.warn("Recording handoff readiness failed", {
+        error: message,
+        fileName: recording.fileName,
+        fileUri: recording.fileUri,
+        platform: Platform.OS
+      });
+
+      if (!isMounted.current || readinessRequestId.current !== requestId) {
+        return false;
+      }
+
+      setReadinessState("failed");
+      setReadinessDebug(message);
+      setActionError("Recording could not be prepared.");
+      return false;
+    }
+  }
+
+  useEffect(() => {
+    validateRecordingReadiness();
+  }, [recording.fileName, recording.fileUri]);
 
   useEffect(() => {
     const requestId = keepAwakeRequestId.current + 1;
@@ -135,62 +184,11 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
   }, [playback.isPlaying, waveProgress]);
 
   async function recordingFileIsReady() {
-    try {
-      setActionError(null);
-      const expectedFileName = ensureM4aFileName(recording.fileName);
-      const fileInfo = await FileSystem.getInfoAsync(recording.fileUri);
-      const fileSize =
-        fileInfo.exists && "size" in fileInfo && typeof fileInfo.size === "number"
-          ? fileInfo.size
-          : recording.fileSize;
-
-      if (!fileInfo.exists) {
-        devLog.warn("NotebookLM file validation failed", {
-          fileExists: false,
-          fileName: expectedFileName,
-          fileUri: recording.fileUri
-        });
-        setActionError("Recording file could not be found.");
-        return false;
-      }
-
-      if (fileSize <= 0) {
-        devLog.warn("NotebookLM file validation failed", {
-          fileExists: true,
-          fileName: expectedFileName,
-          fileSize,
-          fileUri: recording.fileUri
-        });
-        setActionError("Recording file is not ready yet.");
-        return false;
-      }
-
-      if (!expectedFileName.toLowerCase().endsWith(".m4a")) {
-        devLog.warn("NotebookLM file validation failed", {
-          fileExists: true,
-          fileName: expectedFileName,
-          reason: "missing-m4a-extension"
-        });
-        setActionError("Recording file is not ready yet.");
-        return false;
-      }
-
-      devLog.info("NotebookLM file validation succeeded", {
-        fileExists: true,
-        fileName: expectedFileName,
-        fileSize,
-        fileUri: recording.fileUri
-      });
-
+    if (readinessState === "ready") {
       return true;
-    } catch (error) {
-      devLog.warn("NotebookLM file validation failed", {
-        error: getErrorMessage(error),
-        fileUri: recording.fileUri
-      });
-      setActionError("Recording file could not be found.");
-      return false;
     }
+
+    return validateRecordingReadiness();
   }
 
   async function openNotebookLm() {
@@ -289,6 +287,10 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
   }
 
   async function handlePlay() {
+    if (!(await recordingFileIsReady())) {
+      return;
+    }
+
     try {
       await playback.play();
     } catch (error) {
@@ -366,8 +368,20 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
       <View style={styles.header}>
         <IconButton label="Back" symbol={"\u2039"} onPress={() => navigation.navigate("Home")} />
         <View style={styles.statusChip}>
-          <View style={styles.statusDot} />
-          <Text style={styles.statusText}>Ready for NotebookLM</Text>
+          <View
+            style={[
+              styles.statusDot,
+              readinessState === "checking" ? styles.statusDotChecking : null,
+              readinessState === "failed" ? styles.statusDotFailed : null
+            ]}
+          />
+          <Text style={styles.statusText}>
+            {readinessState === "checking"
+              ? "Preparing recording..."
+              : readinessState === "failed"
+                ? "Recording needs attention"
+                : "Ready for NotebookLM"}
+          </Text>
         </View>
         <IconButton
           icon="delete"
@@ -414,23 +428,34 @@ export function RecordingDetailScreen({ navigation, route }: Props) {
       </View>
 
       <View style={styles.playback}>
-        <IconButton label="Play recording" symbol={"\u25B6"} onPress={handlePlay} />
+        <IconButton
+          disabled={readinessState !== "ready"}
+          label="Play recording"
+          symbol={"\u25B6"}
+          onPress={handlePlay}
+          tone={readinessState === "ready" ? "default" : "muted"}
+        />
         <IconButton label="Stop playback" symbol={"\u25A0"} onPress={handleStop} tone="muted" />
       </View>
 
       <View style={styles.actions}>
-        <Text style={styles.notebookHint}>
-          {notebookHint}
-        </Text>
-        <PrimaryButton onPress={openNotebookLm}>{"Open NotebookLM \u2197"}</PrimaryButton>
-        <SecondaryButton onPress={shareRecording}>Share</SecondaryButton>
+        <PrimaryButton disabled={readinessState !== "ready"} onPress={openNotebookLm}>
+          {"Open NotebookLM \u2197"}
+        </PrimaryButton>
+        <SecondaryButton disabled={readinessState !== "ready"} onPress={shareRecording}>
+          Share
+        </SecondaryButton>
         {actionError ? (
           <Text style={styles.error}>{actionError}</Text>
+        ) : null}
+        {readinessState === "failed" ? (
+          <SecondaryButton onPress={validateRecordingReadiness}>Try Again</SecondaryButton>
         ) : null}
         {__DEV__ ? (
           <Text style={styles.debug}>
             Playback keep awake: {keepAwakeActive ? "active" : "inactive"}
             {keepAwakeError ? `\n${keepAwakeError}` : ""}
+            {readinessDebug ? `\nReadiness: ${readinessDebug}` : ""}
           </Text>
         ) : null}
       </View>
@@ -460,6 +485,12 @@ const styles = StyleSheet.create({
     borderRadius: theme.radii.pill,
     height: 7,
     width: 7
+  },
+  statusDotChecking: {
+    backgroundColor: theme.colors.textSubtle
+  },
+  statusDotFailed: {
+    backgroundColor: theme.colors.recording
   },
   statusText: {
     color: theme.colors.textMuted,
@@ -519,12 +550,6 @@ const styles = StyleSheet.create({
   actions: {
     gap: theme.spacing.md,
     marginTop: theme.spacing.lg
-  },
-  notebookHint: {
-    color: theme.colors.textMuted,
-    fontSize: theme.typography.metadata.fontSize,
-    lineHeight: theme.typography.metadata.lineHeight,
-    textAlign: "center"
   },
   error: {
     color: theme.colors.recording,

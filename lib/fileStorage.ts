@@ -32,6 +32,14 @@ export type ShareableRecordingFile = {
   uri: string;
 };
 
+export type RecordingReadinessResult = {
+  fileName: string;
+  fileSize: number;
+  mimeType: string;
+  playbackValidated: boolean;
+  uri: string;
+};
+
 type SaveRecordingInput = {
   durationMillis: number;
   folderUri?: string | null;
@@ -541,4 +549,38 @@ export async function prepareRecordingForShare({
 
     throw error;
   }
+}
+
+export async function validateSavedRecordingForHandoff({
+  fileName,
+  fileUri
+}: {
+  fileName: string;
+  fileUri: string;
+}): Promise<RecordingReadinessResult> {
+  const expectedFileName = ensureM4aFileName(fileName);
+
+  if (!expectedFileName.toLowerCase().endsWith(".m4a")) {
+    throw new Error("Recording file is not ready yet.");
+  }
+
+  const fileInfo = await waitForFinalizedFile(fileUri, "Saved recording handoff");
+  await validateAudioCanInitialize(fileUri, "Saved recording handoff");
+
+  devLog.info("Saved recording handoff validation succeeded", {
+    fileName: expectedFileName,
+    fileSize: fileInfo.size,
+    mimeType: RECORDING_SHARE_MIME_TYPE,
+    playbackValidated: true,
+    platform: Platform.OS,
+    uri: fileUri
+  });
+
+  return {
+    fileName: expectedFileName,
+    fileSize: fileInfo.size,
+    mimeType: RECORDING_SHARE_MIME_TYPE,
+    playbackValidated: true,
+    uri: fileUri
+  };
 }

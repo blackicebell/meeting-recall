@@ -8,6 +8,7 @@ const FLUENT_SETTINGS_ICON_URI =
   "https://cdn.creazilla.com/icons/3183538/ic-fluent-settings-16-regular-icon-md.png";
 
 type IconButtonProps = {
+  disabled?: boolean;
   label: string;
   onPress: () => void;
   tone?: "default" | "destructive" | "muted";
@@ -38,11 +39,24 @@ function getToneColor(tone: NonNullable<IconButtonProps["tone"]>) {
   return theme.colors.text;
 }
 
-export function IconButton({ icon, label, onPress, symbol, tone = "default" }: IconButtonProps) {
+export function IconButton({
+  disabled = false,
+  icon,
+  label,
+  onPress,
+  symbol,
+  tone = "default"
+}: IconButtonProps) {
   const iconColor = getToneColor(tone);
 
   return (
-    <Pressable accessibilityLabel={label} accessibilityRole="button" onPress={onPress} style={styles.button}>
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      disabled={disabled}
+      onPress={onPress}
+      style={[styles.button, disabled ? styles.buttonDisabled : null]}
+    >
       {icon === "delete" ? (
         <Image
           source={{ uri: FLUENT_DELETE_ICON_URI }}
@@ -67,6 +81,9 @@ const styles = StyleSheet.create({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: theme.radii.pill
+  },
+  buttonDisabled: {
+    opacity: 0.45
   },
   symbol: {
     fontSize: 24,

@@ -51,7 +51,10 @@ Avoid tutorials, long paragraphs, and technical explanations.
 Microphone permission should always have a calm explainer before the OS prompt.
 
 Use:
-Meeting Recall needs microphone access to record your meetings.
+Meeting Recall uses the microphone to record your meetings.
+
+Pre-permission buttons must use neutral wording such as:
+Continue
 
 If permission is denied, recovery should be clear:
 Microphone access is off.
