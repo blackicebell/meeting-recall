@@ -10,6 +10,8 @@ import {
   connectGoogleCalendarAccount,
   disconnectGoogleCalendarAccount
 } from "../../lib/googleSignIn";
+import { getRevenueCatConfigurationState, getRevenueCatProductSummary } from "../../lib/revenueCat";
+import { useRevenueCatSubscription } from "../../hooks/useRevenueCatSubscription";
 import type { CalendarConnection } from "../../types/calendar";
 import type { RootStackParamList } from "../../types/navigation";
 
@@ -24,6 +26,8 @@ export function SettingsScreen({ navigation }: Props) {
   });
   const [calendarStatus, setCalendarStatus] = useState("Not connected");
   const [isCalendarBusy, setIsCalendarBusy] = useState(false);
+  const [subscriptionStatus, setSubscriptionStatus] = useState("Checking subscription...");
+  const subscription = useRevenueCatSubscription();
 
   useEffect(() => {
     async function loadConnection() {
@@ -78,6 +82,54 @@ export function SettingsScreen({ navigation }: Props) {
     }
   }
 
+  async function showUpgradePaywall() {
+    setSubscriptionStatus("Opening Pro options...");
+    const result = await subscription.presentPaywall();
+
+    if (!result) {
+      setSubscriptionStatus("Unable to open Pro options. Please try again.");
+      return;
+    }
+
+    setSubscriptionStatus(
+      subscription.isPro || result.purchasedOrRestored
+        ? "Meeting Recall Pro is active."
+        : "Pro is not active."
+    );
+  }
+
+  async function restorePurchases() {
+    setSubscriptionStatus("Restoring purchases...");
+    const customerInfo = await subscription.restore();
+
+    setSubscriptionStatus(
+      customerInfo && subscription.isPro
+        ? "Meeting Recall Pro is active."
+        : "No active Pro subscription found."
+    );
+  }
+
+  async function openCustomerCenter() {
+    setSubscriptionStatus("Opening subscription settings...");
+    const opened = await subscription.openCustomerCenter();
+    setSubscriptionStatus(opened ? "Subscription settings closed." : "Unable to open subscription settings.");
+  }
+
+  async function checkProducts() {
+    try {
+      setSubscriptionStatus("Checking RevenueCat products...");
+      const summary = await getRevenueCatProductSummary();
+      setSubscriptionStatus(
+        summary.availablePackages.length > 0
+          ? `Offering ${summary.currentOfferingId ?? "default"} has ${summary.availablePackages.length} package(s).`
+          : "No RevenueCat packages found. Check your offering setup."
+      );
+    } catch (error) {
+      devLog.warn("Unable to fetch RevenueCat products.", error);
+      setSubscriptionStatus("Unable to fetch RevenueCat products. Check RevenueCat setup.");
+    }
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -87,6 +139,44 @@ export function SettingsScreen({ navigation }: Props) {
       </View>
 
       <Text style={styles.title}>Settings</Text>
+
+      <SectionHeader>Subscription</SectionHeader>
+      <View style={styles.proRow}>
+        <View style={styles.rowText}>
+          <Text style={styles.rowTitle}>Meeting Recall Pro</Text>
+          <Text style={styles.meta}>
+            {subscription.isLoading
+              ? "Checking subscription..."
+              : subscription.isPro
+                ? "Active"
+                : "Free plan"}
+          </Text>
+          <Text style={styles.meta}>
+            {subscription.error ?? subscriptionStatus}
+          </Text>
+        </View>
+        <SecondaryButton disabled={subscription.isLoading} onPress={showUpgradePaywall}>
+          {subscription.isPro ? "View" : "Upgrade"}
+        </SecondaryButton>
+      </View>
+      <View style={styles.inlineActions}>
+        <SecondaryButton disabled={subscription.isLoading} onPress={restorePurchases}>
+          Restore
+        </SecondaryButton>
+        <SecondaryButton disabled={subscription.isLoading} onPress={openCustomerCenter}>
+          Manage
+        </SecondaryButton>
+        {__DEV__ ? (
+          <SecondaryButton disabled={subscription.isLoading} onPress={checkProducts}>
+            Check Products
+          </SecondaryButton>
+        ) : null}
+      </View>
+      {__DEV__ ? (
+        <Text style={styles.devMeta}>
+          RevenueCat: {JSON.stringify(getRevenueCatConfigurationState())}
+        </Text>
+      ) : null}
 
       <SectionHeader>Integrations</SectionHeader>
       <View style={styles.row}>
@@ -165,8 +255,25 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingVertical: theme.spacing.lg
   },
+  proRow: {
+    alignItems: "center",
+    borderBottomColor: theme.colors.divider,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderTopColor: theme.colors.divider,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    flexDirection: "row",
+    gap: theme.spacing.md,
+    justifyContent: "space-between",
+    paddingVertical: theme.spacing.lg
+  },
   rowText: {
     flex: 1
+  },
+  inlineActions: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: theme.spacing.sm,
+    marginTop: theme.spacing.md
   },
   dividerRow: {
     borderBottomColor: theme.colors.divider,
@@ -198,5 +305,11 @@ const styles = StyleSheet.create({
   chevron: {
     color: theme.colors.textSubtle,
     fontSize: 30
+  },
+  devMeta: {
+    color: theme.colors.textSubtle,
+    fontSize: 11,
+    lineHeight: 16,
+    marginTop: theme.spacing.sm
   }
 });

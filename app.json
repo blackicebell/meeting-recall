@@ -2,7 +2,7 @@
   "expo": {
     "name": "Meeting Recall",
     "slug": "meeting-recall",
-    "version": "0.1.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
     "scheme": "meetingrecall",
