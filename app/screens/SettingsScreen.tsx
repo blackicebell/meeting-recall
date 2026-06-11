@@ -1,6 +1,6 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { IconButton, Screen, SecondaryButton, SectionHeader } from "../../components/ui";
 import { theme } from "../../constants/theme";
@@ -16,6 +16,12 @@ import type { CalendarConnection } from "../../types/calendar";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
+
+const ABOUT_LINKS = [
+  { label: "Support", url: "https://getmeetingrecall.com/support" },
+  { label: "Terms", url: "https://getmeetingrecall.com/terms" },
+  { label: "Privacy Policy", url: "https://getmeetingrecall.com/privacy" }
+] as const;
 
 export function SettingsScreen({ navigation }: Props) {
   const [calendarConnection, setCalendarConnection] = useState<CalendarConnection>({
@@ -130,6 +136,22 @@ export function SettingsScreen({ navigation }: Props) {
     }
   }
 
+  async function openAboutLink(label: string, url: string) {
+    try {
+      const canOpen = await Linking.canOpenURL(url);
+
+      if (!canOpen) {
+        Alert.alert("Unable to open link", `Please visit ${url}.`);
+        return;
+      }
+
+      await Linking.openURL(url);
+    } catch (error) {
+      devLog.warn(`Unable to open ${label}.`, error);
+      Alert.alert("Unable to open link", `Please visit ${url}.`);
+    }
+  }
+
   return (
     <Screen>
       <View style={styles.header}>
@@ -208,11 +230,16 @@ export function SettingsScreen({ navigation }: Props) {
 
       <View style={styles.section}>
         <SectionHeader>About</SectionHeader>
-        {["Support", "Terms", "Privacy Policy"].map((item) => (
-          <View key={item} style={styles.linkRow}>
-            <Text style={styles.rowTitle}>{item}</Text>
-            <Text style={styles.chevron}>›</Text>
-          </View>
+        {ABOUT_LINKS.map((item) => (
+          <Pressable
+            accessibilityRole="link"
+            key={item.label}
+            onPress={() => openAboutLink(item.label, item.url)}
+            style={({ pressed }) => [styles.linkRow, pressed ? styles.pressedRow : null]}
+          >
+            <Text style={styles.rowTitle}>{item.label}</Text>
+            <Text style={styles.chevron}>&gt;</Text>
+          </Pressable>
         ))}
       </View>
     </Screen>
@@ -289,6 +316,9 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     paddingVertical: theme.spacing.lg
+  },
+  pressedRow: {
+    opacity: 0.58
   },
   rowTitle: {
     color: theme.colors.text,
