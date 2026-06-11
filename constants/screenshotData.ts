@@ -1,5 +1,4 @@
 import type { StoredRecording } from "../lib/recordingStore";
-import type { MeetingEvent } from "../types/calendar";
 
 const now = new Date();
 const yyyyMmDd = now.toISOString().slice(0, 10);
@@ -12,30 +11,6 @@ const todayAt = (hour: number, minute = 0) => {
 export const isScreenshotMode =
   process.env.EXPO_PUBLIC_SCREENSHOT_MODE === "1" ||
   process.env.EXPO_PUBLIC_SCREENSHOT_MODE === "true";
-
-export const screenshotMeetings: MeetingEvent[] = [
-  {
-    endTime: todayAt(10, 30),
-    id: "screenshot-weekly-team-sync",
-    provider: "google",
-    startTime: todayAt(9, 30),
-    title: "Weekly Team Sync"
-  },
-  {
-    endTime: todayAt(14, 0),
-    id: "screenshot-client-strategy-call",
-    provider: "google",
-    startTime: todayAt(13, 0),
-    title: "Client Strategy Call"
-  },
-  {
-    endTime: todayAt(16, 15),
-    id: "screenshot-ux-review",
-    provider: "google",
-    startTime: todayAt(15, 30),
-    title: "UX Review"
-  }
-];
 
 export const screenshotRecordings: StoredRecording[] = [
   {

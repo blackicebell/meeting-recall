@@ -1,18 +1,12 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { IconButton, Screen, SecondaryButton, SectionHeader } from "../../components/ui";
 import { theme } from "../../constants/theme";
-import { clearCalendarConnection, loadCalendarConnection, saveCalendarConnection } from "../../lib/calendarStore";
 import { devLog } from "../../lib/devLog";
-import {
-  connectGoogleCalendarAccount,
-  disconnectGoogleCalendarAccount
-} from "../../lib/googleSignIn";
 import { getRevenueCatConfigurationState, getRevenueCatProductSummary } from "../../lib/revenueCat";
 import { useRevenueCatSubscription } from "../../hooks/useRevenueCatSubscription";
-import type { CalendarConnection } from "../../types/calendar";
 import type { RootStackParamList } from "../../types/navigation";
 
 type Props = NativeStackScreenProps<RootStackParamList, "Settings">;
@@ -24,69 +18,8 @@ const ABOUT_LINKS = [
 ] as const;
 
 export function SettingsScreen({ navigation }: Props) {
-  const [calendarConnection, setCalendarConnection] = useState<CalendarConnection>({
-    connected: false,
-    email: null,
-    lastConnectedAt: null,
-    provider: "google"
-  });
-  const [calendarStatus, setCalendarStatus] = useState("Not connected");
-  const [isCalendarBusy, setIsCalendarBusy] = useState(false);
   const [subscriptionStatus, setSubscriptionStatus] = useState("Checking subscription...");
   const subscription = useRevenueCatSubscription();
-
-  useEffect(() => {
-    async function loadConnection() {
-      const connection = await loadCalendarConnection();
-      setCalendarConnection(connection);
-      setCalendarStatus(connection.connected ? "Connected" : "Not connected");
-    }
-
-    loadConnection();
-  }, []);
-
-  async function connectCalendar() {
-    try {
-      setIsCalendarBusy(true);
-      setCalendarStatus("Connecting...");
-      const account = await connectGoogleCalendarAccount();
-      const connection = await saveCalendarConnection(account.email);
-
-      devLog.info("Google Calendar connected", {
-        accessTokenReceived: Boolean(account.accessToken),
-        email: account.email
-      });
-
-      setCalendarConnection(connection);
-      setCalendarStatus("Connected");
-    } catch (error) {
-      devLog.warn("Unable to connect Google Calendar.", error);
-
-      setCalendarStatus("Unable to connect Google Calendar. Please try again.");
-    } finally {
-      setIsCalendarBusy(false);
-    }
-  }
-
-  async function disconnectCalendar() {
-    try {
-      setIsCalendarBusy(true);
-      await disconnectGoogleCalendarAccount();
-      await clearCalendarConnection();
-      setCalendarConnection({
-        connected: false,
-        email: null,
-        lastConnectedAt: null,
-        provider: "google"
-      });
-      setCalendarStatus("Not connected");
-    } catch (error) {
-      devLog.warn("Unable to disconnect Google Calendar.", error);
-      setCalendarStatus("Unable to disconnect Google Calendar. Please try again.");
-    } finally {
-      setIsCalendarBusy(false);
-    }
-  }
 
   async function showUpgradePaywall() {
     setSubscriptionStatus("Opening Pro options...");
@@ -199,22 +132,6 @@ export function SettingsScreen({ navigation }: Props) {
           RevenueCat: {JSON.stringify(getRevenueCatConfigurationState())}
         </Text>
       ) : null}
-
-      <SectionHeader>Integrations</SectionHeader>
-      <View style={styles.row}>
-        <View style={styles.rowText}>
-          <Text style={styles.rowTitle}>Connect Google Calendar</Text>
-          <Text style={styles.meta}>
-            {calendarConnection.connected
-              ? calendarConnection.email ?? "Calendar connected"
-              : "Use today's meetings to suggest titles."}
-          </Text>
-          <Text style={styles.meta}>{calendarStatus}</Text>
-        </View>
-        <SecondaryButton onPress={calendarConnection.connected ? disconnectCalendar : connectCalendar}>
-          {isCalendarBusy ? "Working" : calendarConnection.connected ? "Disconnect" : "Connect"}
-        </SecondaryButton>
-      </View>
 
       <View style={styles.section}>
         <SectionHeader>Storage</SectionHeader>
