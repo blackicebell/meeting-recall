@@ -1,11 +1,17 @@
 import type { NativeStackScreenProps } from "@react-navigation/native-stack";
+import { usePlacement } from "expo-superwall";
 import { useState } from "react";
 import { Alert, Linking, Pressable, StyleSheet, Text, View } from "react-native";
 
 import { IconButton, Screen, SecondaryButton, SectionHeader } from "../../components/ui";
+import { SUPERWALL_PLACEMENTS } from "../../constants/superwall";
 import { theme } from "../../constants/theme";
 import { devLog } from "../../lib/devLog";
-import { getRevenueCatConfigurationState, getRevenueCatProductSummary } from "../../lib/revenueCat";
+import {
+  getRevenueCatConfigurationState,
+  getRevenueCatProductSummary,
+  hasMeetingRecallPro
+} from "../../lib/revenueCat";
 import { useRevenueCatSubscription } from "../../hooks/useRevenueCatSubscription";
 import type { RootStackParamList } from "../../types/navigation";
 
@@ -20,21 +26,51 @@ const ABOUT_LINKS = [
 export function SettingsScreen({ navigation }: Props) {
   const [subscriptionStatus, setSubscriptionStatus] = useState("Checking subscription...");
   const subscription = useRevenueCatSubscription();
+  const { registerPlacement } = usePlacement({
+    onPresent: (paywallInfo) => {
+      devLog.info("Superwall paywall presented", {
+        identifier: paywallInfo.identifier,
+        name: paywallInfo.name
+      });
+    },
+    onDismiss: (paywallInfo, result) => {
+      devLog.info("Superwall paywall dismissed", {
+        identifier: paywallInfo.identifier,
+        result
+      });
+    },
+    onSkip: (reason) => {
+      devLog.info("Superwall paywall skipped", { reason });
+    },
+    onError: (error) => {
+      devLog.warn("Superwall paywall error", error);
+    }
+  });
 
   async function showUpgradePaywall() {
     setSubscriptionStatus("Opening Pro options...");
-    const result = await subscription.presentPaywall();
 
-    if (!result) {
+    try {
+      await registerPlacement({
+        placement: SUPERWALL_PLACEMENTS.upgrade,
+        params: {
+          source: "settings",
+          entitlement: "Meeting Recall Pro"
+        }
+      });
+
+      const customerInfo = await subscription.refresh();
+
+      setSubscriptionStatus(
+        customerInfo && hasMeetingRecallPro(customerInfo)
+          ? "Meeting Recall Pro is active."
+          : "Pro options closed."
+      );
+    } catch (error) {
+      devLog.warn("Unable to open Superwall paywall.", error);
       setSubscriptionStatus("Unable to open Pro options. Please try again.");
-      return;
+      Alert.alert("Unable to open Pro options", "Please try again.");
     }
-
-    setSubscriptionStatus(
-      subscription.isPro || result.purchasedOrRestored
-        ? "Meeting Recall Pro is active."
-        : "Pro is not active."
-    );
   }
 
   async function restorePurchases() {
